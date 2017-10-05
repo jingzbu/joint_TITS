@@ -1,0 +1,1568 @@
+%\documentclass[10pt, onecolumn]{IEEEtran}
+%\documentclass[letterpaper, 10 pt, onecolumn, draftcls]{IEEEtran}
+%\documentclass[letterpaper, 10 pt, onecolumn]{IEEEtran}
+%\documentclass[10pt, onecolumn, draftcls]{IEEEtran}
+\documentclass[3p]{elsarticle}
+
+\journal{Transportation Research Part B}
+
+%\usepackage{lineno,hyperref}
+%\modulolinenumbers[5]
+%\documentclass[review]{elsarticle}
+%\documentclass[10pt, onecolumn]{IEEEtran}
+%\textwidth=16.6cm \textheight=21.7cm \oddsidemargin=0.03cm \topmargin=-0.2cm
+\renewcommand{\baselinestretch}{1.5}
+
+% The following packages can be found on http:\\www.ctan.org
+\usepackage{graphicx}
+\usepackage{epsfig} % for postscript graphics files
+%\usepackage{fancyhdr}
+%\usepackage{mathptmx} % assumes new font selection scheme installed
+%\usepackage{times} % assumes new font selection scheme installed
+\usepackage{amsmath} % assumes amsmath package installed
+\usepackage{amssymb}  % assumes amsmath package installed
+\usepackage{mathrsfs}
+\usepackage{url}
+\usepackage{tabularx,ragged2e,booktabs,caption}
+\usepackage{bm}
+\usepackage{bbm}
+\usepackage{color}
+\usepackage{theorem}
+\usepackage{caption}
+\usepackage{multirow}
+%\usepackage{cite}
+\usepackage{subcaption}
+\usepackage{supertabular}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{url}
+%\usepackage{csvsimple,longtable,booktabs}
+
+
+
+% for extrarowheight
+\allowdisplaybreaks
+
+\input{mymacros_2cln}
+\input{lpsymbols} 
+%\input{C:/Users/Yannis/Documents/Private/tex/macros/mymacros_2cln}
+%\input{C:/Users/Yannis/Documents/Private/tex/macros/lpsymbols} 
+%\input{/home/yannisp/Private/tex/macros/mymacros_2cln}
+%\input{/home/yannisp/Private/tex/macros/lpsymbols} 
+\newcommand{\pf}{\vskip 5 pt \noindent {\bf{Proof: }}}
+
+
+\usepackage{algorithm}
+\usepackage{algorithmicx,algpseudocode}
+
+\DeclareMathOperator{\VI}{\text{VI}}
+
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+
+\makeatletter
+\newcommand*{\defeq}{\stackrel{\text{def}}{=}}
+\makeatother
+
+\makeatletter
+\newcommand{\rmnum}[1]{\romannumeral #1}
+\newcommand{\Rmnum}[1]{\expandafter\@slowromancap\romannumeral #1@}
+\makeatother
+
+
+
+\begin{document}
+	
+\begin{frontmatter}
+	
+  \title{Joint Data-Driven Recovery of Travel Time Functions and
+    Origin-Destination Demand in Multi-Class Transportation
+    Networks\footnote{Research partially supported by the NSF under
+      grants CNS-1645681, CCF-1527292 and IIS-1237022 and by the ARO
+      under grant W911NF-12-1-0390.}}
+	
+
+	\author[mymainaddress]{Jing Zhang}
+	\ead{jzh@bu.edu}
+	
+	\author[mysecondaryaddress]{Ioannis Ch. Paschalidis\corref{mycorrespondingauthor}}
+	\cortext[mycorrespondingauthor]{Corresponding author.}
+	\ead{yannisp@bu.edu}\ead[url]{http://sites.bu.edu/paschalidis/}
+	
+	\address[mymainaddress]{Division of Systems Eng., Boston University, Brookline, MA 02446.}
+	\address[mysecondaryaddress]{Dept. of Electrical and Computer Eng., Boston University, 8 St. Mary's St., Boston, MA 02215.}
+
+
+\begin{abstract}
+  For both single-class and multi-class transportation networks,
+  existing works have tackled the problem of adjusting
+  Origin-Destination (OD) demand matrices and recovering travel latency
+  cost functions. However, these two types of problems are typically
+  treated separately. In this paper, we propose a method to jointly
+  recover nonparametric travel latency cost functions and adjust OD
+  demand matrices. We formulate the problem as a bilevel optimization
+  problem in a multi-class transportation network and develop an
+  alternating optimization approach to solve it.  Extensive numerical
+  experiments using benchmark networks and a real road network (the
+  Eastern Massachusetts highway network), ranging from moderate-sized to
+  large-sized, demonstrate the effectiveness and efficiency of our
+  method.
+\end{abstract}
+	
+	
+\begin{keyword}
+  
+\end{keyword}
+	
+\end{frontmatter}
+
+\section{Introduction} \label{sec:intro}
+	
+Depending on whether we put different weights onto the flows from
+different classes of vehicles, we can model a transportation network as
+\emph{single-class} \cite{dafermos1969traffic} or \emph{multi-class}
+\cite{dafermos1972traffic}. Naturally, we can treat the former as a
+special case of the latter. Given a general multi-class transportation
+network and assuming all users (drivers) choose routes selfishly, the
+network reaches an equilibrium in terms of link flows, known as the {\em
+  Wardrop equilibrium} \cite{wardrop1952some}. At the equilibrium,
+no single driver can ``benefit'' by rerouting.
+
+Mathematically, for a general multi-class transportation network, given
+\emph{travel latency (time) cost functions} (we will also simply say
+\emph{cost functions}) with respect to link (road/arc) flows and an
+Origin-Destination (OD) flow demand matrix, finding the Wardrop
+equilibrium is formulated as the Traffic Assignment Problem (TAP), which
+has been extensively studied; see, e.g., \cite{patriksson1994traffic}
+and the references therein. The TAP, which we will call the
+\emph{forward problem} throughout the paper, can be explicitly
+formulated as an optimization problem \cite{dafermos1969traffic} or a
+Variational Inequality (VI) problem \cite{dafermos1980traffic}.
+
+In practice, however, the OD demand matrix and the cost function are not
+readily available. Transportation engineers have been typically using
+surveys to estimate demand and making empirical assumptions for the cost
+function (e.g., Bureau of Public Roads cost function
+\cite{branston1976link}). With the increasing availability of data,
+there is an opportunity to obtain these quantities in a more systematic,
+data-driven fashion by formulating appropriate \emph{inverse problems}.
+More specifically, given an OD demand matrix and the Wardrop
+equilibrium, recovering the cost function has been recently studied for
+single-class networks~\cite{bertsimas2014data,CDC16,IFAC17}. Our recent
+work \cite{CDC17}, a preliminary version of the current paper, extends
+the same type of inverse problem to multi-class models but without
+considering them jointly with demand estimation. At the same time,
+another version of the inverse problem which adjusts the OD demand
+matrix given the Wardrop equilibrium and the cost function has also been
+studied for both
+single-class~\cite{spiess1990gradient,lundgren2008heuristic,IFAC17,ieee18}
+and multi-class~\cite{noriega2007multi} networks. For convenience, in
+the sequel, we use the term IP-1 (resp., IP-2) to indicate the inverse
+problem of recovering cost functions (resp., adjusting OD demand
+matrices).
+
+Most of the existing work typically deals with these two types of
+inverse problems separately; a limitation we seek to address in this
+paper. There has been some work to estimate OD demand in a congested
+network, leading to bilevel formulations and local optimization methods,
+see, e.g.,~\cite{florian1995coordinate,yang1995heuristic}. Closer to the
+goal of our work, \cite{yang2001simultaneous} considered the
+simultaneous estimation of travel cost and OD demand in a stochastic
+user equilibrium setting. Yet, these earlier works consider single-class
+networks (with the exception of \cite{noriega2007multi}) and do not
+attempt to estimate (nonparametrically) the full structure of the travel
+cost functions as we do. Rather, they seek to estimate a sensitivity
+constant that adjusts how a given travel cost function affects route
+choice probabilities.
+
+It is a well-known fact that, for general multi-class transportation
+networks, there do not exist reasonable easily verifiable assumptions
+about the cost functions to ensure the existence and uniqueness of the
+solution to the \emph{forward problem} (i.e., TAP)
+\cite{noriega2007algorithmic}. Therefore, for the multi-class inverse
+problem IP-1, it would be hard to establish rigorous theoretical results
+under mild easy-to-check conditions. In our preliminary work
+\cite{CDC17}, an appropriate formulation for the multi-class IP-1 is
+provided and numerical experiments are conducted to empirically validate
+the proposed solution.
+
+In this paper, operating on multi-class transportation networks, we seek
+to jointly investigate the two related inverse problems -- recovering
+cost functions (IP-1) in a non-parametric setting and adjusting OD
+demand matrices (IP-2). For a given multi-class network, assume that the
+Wardrop equilibrium is observed and that an initial ``rough'' OD demand
+matrix is available. To solve the joint problem, we leverage a
+generalized bilevel optimization problem formulation and propose a
+gradient-based alternating optimization approach. The approach
+alternates between estimating the cost function (given demand) and
+adjusting the OD demand matrix (given the cost function). To validate
+its effectiveness and efficiency, we conduct extensive numerical
+experiments. In particular, we implement our algorithms over three
+benchmark networks (Sioux-Falls, Berlin-Tiergarten, and Anaheim) ranging
+from moderate-sized to large-sized and a real large network representing
+the Eastern Massachusetts (EMA) highway network.
+
+The rest of the paper is organized as follows. In Sec.~\ref{sec:preli}
+we present the single-class and multi-class transportation network
+models, formulate the \emph{forward problem} (TAP), specify the form of
+the cost functions, and formulate the \emph{inverse problem} IP-1. We
+formulate the joint problem and propose algorithms to solve it in
+Sec.~\ref{sec:joint}. Numerical results are shown in
+Sec.~\ref{sec:num}. Sec.~\ref{sec:conc} concludes the paper. Additional
+experimental details for the EMA highway network are contained in the
+Appendix.
+	
+	
+\textbf{Notational conventions:} All vectors are column vectors. For
+economy of space, we write $\mathbf x = (x_1, \ldots,
+x_{\text{dim}(\bx)})$ to denote the column vector $\bx$, where
+$\text{dim}(\bx)$ is its dimensionality. $\bx \ge \textbf{0}$ (with
+$\textbf{0}$ being the zero vector) denotes that all entries of a vector
+$\bx$ are nonnegative. Denote by $\mathbb{R}_+$ the set of all
+nonnegative real numbers. We use ``prime'' to denote the transpose of a
+matrix or vector. Unless otherwise specified, $\|\cdot\|$ denotes the
+$\ell_2$ norm. Let $\left| \mathcal{D} \right|$ denote the cardinality
+of a set $\mathcal{D}$, and $\left[\kern-0.15em\left[ \scrD
+  \right]\kern-0.15em\right]$ the set $\left\{ {1, \ldots ,\left| \scrD
+    \right|} \right\}$. $A \defeq B$ indicates $A$ is defined using $B$.
+	
+\section{Preliminaries} \label{sec:preli}
+	
+\subsection{Transportation network model}  \label{sec:mod}
+	
+Let us review the transportation network models. We note that the same
+single-class model to be presented first has also been adopted in
+\cite{bertsimas2014data,CDC16,IFAC17}.
+	
+\subsubsection{Single-class transportation network
+  model} \label{sec:sing-mod}
+	
+Consider a directed graph denoted by $\left( {\scrV, \scrA} \right)$,
+where $\scrV$ denotes the set of nodes and $\scrA$ the set of
+links. Assume it is strongly connected.  Let $\bN \in {\left\{ {0,1, -
+      1} \right\}^{\left| \scrV \right| \times \left| \scrA \right|}}$
+be the node-link incidence matrix, and $\textbf{e}_{a}$ the vector with
+an entry equal to 1 corresponding to link $a$ and all the other entries
+equal to 0.  Let $\bw = \left( {{w_s},{w_t}} \right)$ denote an
+Origin-Destination (OD) pair and $\scrW = \left\{ {{\bw_i}:{\bw_i} =
+    \left( {{w_{si}},{w_{ti}}} \right), \,i \in \left[\kern-0.15em\left[
+        \scrW \right]\kern-0.15em\right]} \right\}$ the set of all OD
+pairs.  Denote by ${d^{\bw}} \ge 0$ the amount of the flow demand from
+$w_s$ to $w_t$. Let ${\bd^{\bw}} \in {\mathbb{R}^{\left| \scrV
+    \right|}}$ be the vector which is all zeros, except for a
+$-{d^{\bw}}$ in the coordinate corresponding to node $w_s$ and a
+${d^{\bw}}$ in the coordinate corresponding to node $w_t$.  Let $x_a$ be
+the total link flow on link $a \in \scrA$ and $\bx$ the vector of these
+flows.  Let $\scrF$ be the set of feasible flow vectors defined by
+\begin{align}
+\begin{array}{l}
+	\scrF \defeq \Big\{ \bx:\exists {\bx^{\bw}} \in \mathbb{R}_ +
+		^{\left| \scrA \right|} ~\text{s.t.}~\bx =
+		\sum\limits_{\bw \in \scrW} {{\bx^{\bw}}},\, \bN{\bx^{\bw}} = {\bd^{\bw}},\,\forall \bw \in \scrW \Big\}, 
+\end{array}   \label{feasi}
+\end{align}
+where $\bx^\bw$ is the flow vector attributed to OD pair $\bw$.
+	
+In order to formulate appropriate optimization and inverse optimization
+problems, we next state the definition of the \textit{Wardrop equilibrium}.
+	
+\begin{defi}[\cite{patriksson1994traffic}] \label{cdc16-def1} \emph{A
+    feasible flow $\bx^* \in \scrF$ is a {\em Wardrop equilibrium}
+    if for every OD pair $\bw = \left( {{w_s},{w_t}} \right) \in
+    \mathcal{W}$, and any route connecting $(w_s,w_t)$ with positive
+    flow in $\bx^*$, the cost of traveling along that route is no
+    greater than the cost of traveling along any other route that
+    connects $(w_s,w_t)$. }
+\end{defi}
+	
+In the above definition, the cost of traveling along a route is the sum
+of the costs of each of its constituent links.
+	
+\subsubsection{Multi-class transportation network
+  model} \label{sec:multi-mod}
+	
+Denote by $|\tilde \scrU|$ the number of user (vehicle) classes. Let the
+original network be $\big( {\tilde {\scrV},\tilde {\scrA}}, \tilde
+{\scrW} \big)$, where $\tilde {\scrV} = \big\{ {{v_i}: i \in
+  [\kern-0.15em[ \tilde\scrV ]\kern-0.15em]} \big\}$, $\tilde {\scrA} =
+\big\{ {{a_{i}}: i \in [\kern-0.15em[ \tilde\scrA ]\kern-0.15em]}
+\big\}$, and $\tilde {\scrW} = \big\{ {{\bw_i}:{\bw_i} \defeq \left(
+    {{w_{si}},{w_{ti}}} \right),i \in [\kern-0.15em[ \tilde \scrW
+  ]\kern-0.15em]} \big\}$.  We borrow the idea of making $|\tilde
+\scrU|$ copies of $\big( {\tilde {\scrV},\tilde {\scrA}}, \tilde {\scrW}
+\big)$, each corresponding to a single vehicle class, to obtain an
+enlarged single-class network \cite{dafermos1972traffic}. In particular,
+we construct a single-class network $\left( \scrV, \scrA,\scrW \right)$,
+where
+\begin{align}
+\scrV &= \big\{ {v(i,u): i \in [\kern-0.15em[ \tilde\scrV 
+		]\kern-0.15em], u \in [\kern-0.15em[ \tilde\scrU
+		]\kern-0.15em]} \big\}, \label{nodes} \\
+	\scrA &= \big\{ {a(i,u): i \in [\kern-0.15em[ \tilde\scrA 
+		]\kern-0.15em], u \in [\kern-0.15em[ \tilde\scrU 
+		]\kern-0.15em]} \big\}, \label{links} \\
+	\scrW &= \big\{ \bw(i,u):\bw(i,u) \defeq \left( {w_s(i,u),w_t(i,u)} \right), i \in [\kern-0.15em[ \tilde\scrW 
+	]\kern-0.15em], \,u \in [\kern-0.15em[ \tilde\scrU 
+	]\kern-0.15em] \big\}. \label{ods}
+\end{align}
+	
+	
+We then can derive the node-link incidence matrix $\bN \in {\left\{
+    {0,1, - 1} \right\}^{\left| \scrV \right| \times \left| \scrA
+    \right|}}$. Note that $\left| \scrV \right| =
+|\tilde\scrU||\tilde\scrV|$, and $\left| \scrA \right| =
+|\tilde\scrU||\tilde\scrA|$. For $i \in [\kern-0.15em[ \tilde\scrA
+]\kern-0.15em],~ u \in [\kern-0.15em[ \tilde\scrU ]\kern-0.15em]$, let
+$\textbf{e}_{iu}$ denote the $\left| \scrA \right|$-dimensional vector
+with an entry equal to 1 corresponding to link $a(i,u)$ and all the
+other entries equal to 0.  Also, for $i \in [\kern-0.15em[ \tilde\scrW
+]\kern-0.15em],~ u \in [\kern-0.15em[ \tilde\scrU ]\kern-0.15em]$, we
+denote by ${d^{\bw(i,u)}}$ the flow demand of vehicle class $u$ from
+node ${w_s(i,u)}$ to node ${w_t(i,u)}$. Then, we define ${\bd^{\bw}} \in
+{\mathbb{R}^{\left| \scrV \right|}}$ as for the single-class case.
+Accordingly, the set of feasible flow vectors $\scrF$ can be defined as
+in \eqref{feasi}.  For convenience, we vectorize a given demand matrix
+as $\bg = \big( {{g_{iu}}; \,i \in [\kern-0.15em[ \tilde \scrW
+  ]\kern-0.15em],u \in [\kern-0.15em[ \tilde \scrU ]\kern-0.15em]}
+\big)$, where for $i \in [\kern-0.15em[ \tilde \scrW ]\kern-0.15em],\,u
+\in [\kern-0.15em[ \tilde \scrU ]\kern-0.15em]$, $g_{iu}$ denotes the
+flow demand of vehicle class $u$ for OD pair $i$. In addition, we denote
+by $\bg_u = \big( {{g_{iu}}; \,i \in [\kern-0.15em[ \tilde \scrW
+  ]\kern-0.15em]} \big)$ the demand vector for vehicle class $u \in
+[\kern-0.15em[ \tilde \scrU ]\kern-0.15em]$.
+	
+	
+Write a feasible flow vector $\bx \in \scrF$ as $\bx = \big( {x_{iu};
+  \,i \in [\kern-0.15em[ \tilde\scrA ]\kern-0.15em], u \in
+  [\kern-0.15em[ \tilde\scrU ]\kern-0.15em]} \big)$, where $x_{iu}$
+denotes the flow on link $a(i,u)$. Let $\bx_u = \big( {{x_{iu}}; \,i \in
+  [\kern-0.15em[ \tilde \scrA ]\kern-0.15em]} \big)$ be the flow vector
+for vehicle class $u \in [\kern-0.15em[ \tilde \scrU ]\kern-0.15em]$ and
+${\bx_{a_i}} = \big( {x_{iu}};\, u \in [\kern-0.15em[ \tilde\scrU
+]\kern-0.15em]\big)$ the flow vector of all vehicle classes
+corresponding to the $i$th \emph{physical} link.  We consider the
+following cost function:
+\begin{align}
+	\bt\left( \bx \right) = \big({t_{iu}}(\bx_{a_i}); \,i \in [\kern-0.15em[ \tilde\scrA 
+	]\kern-0.15em], u \in [\kern-0.15em[ \tilde\scrU 
+	]\kern-0.15em]\big), \label{costf} 
+\end{align}
+where the cost on a \emph{physical} link does not depend on the flows
+elsewhere, but a \emph{physical} link maps to $|\tilde{\scrU}|$
+\emph{conceptual} links, each of which corresponds to a vehicle class.
+	
+	
+It is seen that the single-class model is actually a special case of the
+multi-class model, and that, formally, the multi-class model can be
+treated as an enlarged single-class model. Thus, in the following, we
+only need to consider general multi-class models. However, as is well
+known, due to coupling of flows from different classes of vehicles, some
+of the properties could be very different for a model with $|\tilde
+\scrU| > 1$ compared to the single-class case.
+	
+	
+\subsection{Forward problem and inverse problem IP-1}
+	
+In this section we formulate the forward problem TAP and the inverse
+problem IP-1 for the multi-class transportation network $\left( \scrV,
+  \scrA,\scrW \right)$ defined in Sec. \ref{sec:multi-mod} (see
+\eqref{nodes}-\eqref{ods}).
+	
+\subsubsection{The forward problem}  \label{sec:forward}
+	
+As in \cite{CDC16}, here we refer to the Traffic Assignment Problem
+(TAP) as the \textit{forward problem}, whose goal is to find the Wardrop
+equilibrium for a given transportation network $\left( \scrV,
+  \scrA,\scrW \right)$ with a given travel latency cost function $\bt$
+and a given OD demand vector $\bg$.  It is a well-known result that TAP
+can be formulated as a Variational Inequality (VI) problem
+$\text{VI}\left( {\bt,\scrF} \right)$, defined as follows.
+	
+\begin{defi}
+  \label{cdc16-def2} \em{(\cite{bertsimas2014data})}. The VI problem,
+  denoted as $\text{VI}\left( {\bt,\scrF} \right)$, is to find an ${\bx^
+    * } \in \scrF$ s.t.
+\begin{align}
+		\bt{\left( {{\bx^ * }} \right)'}\left( {\bx - {\bx^ * }} \right) \geq 0, \quad \forall \bx \in \scrF. \label{cdc16-VI}
+\end{align}
+\end{defi}
+	
+To proceed, let us first present a definition regarding the monotonicity
+of a cost function.
+\begin{defi}
+\label{journal-def3} \em{(\cite{patriksson1994traffic})}. 
+		$\bt(\cdot)$ is \textit{strongly monotone} on $\scrF$ if there exists a constant $\eta > 0$ such that
+		\[\left( {\bt\left( \bx \right) - \bt\left( \by \right)} \right)'\left( {\bx - \by} \right) \ge \eta {\left\| {\bx - \by} \right\|^2},\quad \forall \bx,\by \in \scrF.\]
+\end{defi}
+To ensure the existence and uniqueness of the solution to
+$\text{VI}\left( {\bt,\scrF} \right)$, we need the following assumption.
+\begin{ass} \label{cdc16-assumption1} $\bt(\cdot)$ is strongly monotone
+  on $\scrF$ and continuously differentiable on $\mathbb{R}_ + ^{\left|
+      \scrA \right|}$. $\scrF$ is nonempty and contains an interior
+  point (Slater's condition \cite{boyd2004convex}).
+\end{ass}
+	
+	
+Relating the Wardrop equilibrium to the VI problem, the following result
+is well-known in the literature.
+\begin{thm} \label{cdc17-th21} (\cite{patriksson1994traffic}).
+  \noindent Under Assump. \ref{cdc16-assumption1}, a Wardrop equilibrium
+  of the multi-class transportation network is a solution to
+  $\text{VI}(\bt,\scrF)$, where $\bt,\scrF$ are given by \eqref{costf}
+  and \eqref{feasi}, respectively.
+\end{thm}
+	
+\begin{rmk} \label{rem1} \em{As noted in \cite{noriega2007algorithmic},
+    Assump. \ref{cdc16-assumption1} cannot be easily verified for
+    general multi-class transportation networks. We therefore do not
+    have any guarantee of always obtaining unique link flows for each
+    and every class of vehicles.}
+\end{rmk}
+	
+	
+	
+\subsubsection{BPR-type cost functions} \label{sec:cost}
+	
+To simplify the analysis, we now further specify the cost functions in
+\eqref{costf}.  For each $i \in [\kern-0.15em[ \tilde\scrA
+]\kern-0.15em], u \in [\kern-0.15em[ \tilde\scrU ]\kern-0.15em]$, we
+define the following generalized Bureau of Public Roads (BPR)-type
+travel time (latency cost) function \cite{branston1976link,
+  noriega2007algorithmic, bertsimas2014data}:
+\begin{align}{t_{iu}}\left( \bx \right) = {t^{{0}}_{iu}}f\Big( {\frac{{{\btheta}'{{\bx_{a_i}}} }}{{{m_{i}}}}} \Big), \label{costMulti}
+\end{align}
+where ${t^{{0}}_{iu}}$ is called the \textit{free-flow travel time} for
+vehicle class $u$ on link ${a_i}$ (the $i$th \emph{physical} link),
+$f(\cdot)$ is a ``cornerstone'' cost function, which satisfies $f(0)=1$
+and is strictly increasing and continuously differentiable on
+$\mathbb{R}_+$, ${m_{i}}$ is the \textit{effective flow capacity} of
+link ${a_i}$, and ${\btheta} = \big( {\theta _u}; \, u \in
+[\kern-0.15em[ \tilde\scrU ]\kern-0.15em] \big)$ is a weight vector such
+that ${\theta _u} \geq 1, \,\forall u \in [\kern-0.15em[ \tilde\scrU
+]\kern-0.15em]$. As a special case, the single-class network corresponds
+to $|\tilde\scrU| = 1$ and $\theta_1 = 1$.
+	
+	
+	
+\subsubsection{The inverse problem IP-1} \label{sec InverseVI-multi}
+	
+In order to solve the forward problem, thus obtaining the Wardrop
+equilibrium flow vector $\bx$, we need to know the cost function $\bt$
+and the OD demand vector $\bg$. Now, assuming that we know the OD demand
+vector $\bg$ and have observed the Wardrop equilibrium flow vector
+$\bx$, we seek to formulate the inverse problem IP-1 (as an inverse VI
+problem, in particular), so as to estimate the travel latency cost
+function $\bt$ (specifically, $f(\cdot)$ in \eqref{costMulti}).  To
+provide some insight, given $|\scrK|$ samples of the link flow vector
+$\bx$, one can think of them as flow observations on $|\scrK|$ different
+networks (or subnetworks) which are nevertheless produced by the exact
+same cost function. The inverse problem formulation seeks to determine
+the cost function so that each flow observation is as close to an
+equilibrium as possible.
+	
+To that end, for a given $\epsilon > 0$, we define an
+\textit{$\epsilon$-approximate solution} to $\VI(\mathbf{t}, \scrF)$ by
+changing the right-hand side of \eqref{cdc16-VI} to $- \epsilon$.
+\begin{defi}
+  \label{cdc16-def3}
+  \em{(\cite{bertsimas2014data})}. Given $\epsilon > 0$, $\hat{\bx} \in
+  \scrF$ is called an \textit{$\epsilon$-approximate solution} to
+  $\VI(\mathbf{t}, \scrF)$ if
+\begin{equation} \label{cdc16-eq:defApproxEquil}
+\mathbf{t}(\hat{\bx})'(\bx - \hat{\bx}) \geq - \epsilon, \quad
+\forall \bx \in \scrF.
+\end{equation}
+\end{defi}
+	
+	
+Assume now we are given $|\scrK|$ networks
+$(\scrV^{{(k)}},\scrA^{{(k)}},\scrW^{{(k)}}),\, k \in [\kern-0.15em[
+\scrK ]\kern-0.15em]$ (as a special case, these could be $|\scrK|$
+replicas of the same network $\left( {\scrV, \scrA, \scrW} \right)$),
+and the observed link flow data $\big( {\bx_{a_i}^{{(k)}}} = \big(
+{x^{{(k)}}_{iu}};\, u \in [\kern-0.15em[ \tilde\scrU
+]\kern-0.15em]\big); \, i \in [\kern-0.15em[ \tilde\scrA^{{(k)}}
+]\kern-0.15em], k \in [\kern-0.15em[ \scrK ]\kern-0.15em]\big)$. The
+inverse VI problem amounts to finding a function $\bt$ such that
+$\bx^{{(k)}}$ is an $\epsilon_k$-approximate solution to $\VI(\bt,
+\scrF^{{(k)}})$ for each $k$.  Denoting $\bepsilon \defeq (\epsilon_k;
+\, k \in [\kern-0.15em[ \scrK ]\kern-0.15em])$, we can formulate the
+inverse VI problem as in \cite{bertsimas2014data}
+\begin{align}
+	\min_{{\mathbf{t}}, \bepsilon} \quad & \| \bepsilon \|
+	\label{cdc16-inverseVI1} \\
+	\text{s.t.} \quad & {\mb{t}}({\bx^{{(k)}}})'(\bx-{\bx^{{(k)}}})
+        \geq -\epsilon_k, \quad \forall \bx\in \scrF^{{(k)}}, k \in
+        [\kern-0.15em[ \scrK
+	]\kern-0.15em], \notag \\
+	& \epsilon_k > 0, \quad \forall k \in [\kern-0.15em[ \scrK
+        ]\kern-0.15em], \notag
+\end{align}
+where the optimization is over $\bepsilon$ and the selection of function
+$\bt(\cdot)$ (that is, $f(\cdot)$).
+	
+Aiming at recovering a cost function that has both good data reconciling
+and generalization properties, we apply an estimation approach which
+expresses the function $f(\cdot)$ (recall \eqref{costMulti}) in a
+Reproducing Kernel Hilbert Space (RKHS) $\scrH$
+\cite{bertsimas2014data,evgeniou2000regularization}. In particular, by
+\cite[Thm. 2]{bertsimas2014data}, being a variant of \cite[(6)]{IFAC17},
+the inverse VI problem \eqref{cdc16-inverseVI1} can be reformulated as a
+Quadratic Program (QP):
+\begin{align}
+	\text{(invVI-1)} \notag \\
+	\mathop {\min }\limits_{\by,\bepsilon} {\text{  }}& \|\bepsilon\| + \gamma\| {f} \|^2_{\scrH} \label{inverVI2-multi-pre} \\
+	\text{s.t.}{\text{  }}&{\textbf{e}}_{iu}'\bN'_k{\by^\bw} \leq t_{iu}^{{0}}{{{f}\bigg( \frac{{{{\btheta}}'\bx_{a_i}^{{(k)}}}}{{{m_{i}^{{(k)}}}}} \bigg)}}, \qquad \forall i \in [\kern-0.15em[ \tilde\scrA^{{(k)}} 
+	]\kern-0.15em], ~u \in [\kern-0.15em[ \tilde\scrU 
+	]\kern-0.15em], ~\bw \in {\scrW^{{(k)}}}, ~k \in [\kern-0.15em[ \scrK 
+	]\kern-0.15em],  \label{dual-feasi} \\
+	&\sum\limits_{i=1}^{|\tilde\scrA^{{(k)}}|} \bigg(\sum\limits_{u=1}^{|\tilde\scrU|} {t_{iu}^{{0}}{x_{iu}}}\bigg) {{{f}\bigg( \frac{{{{\btheta}}'\bx_{a_i}^{{(k)}}}}{{{m_{i}^{{(k)}}}}} \bigg)}} - \sum\limits_{\bw \in {\scrW_k}} {\left( {{\bd^\bw}} \right)'{\by^\bw}}  \leq {\epsilon_k},  \qquad \forall k \in [\kern-0.15em[ \scrK 
+	]\kern-0.15em],  \label{sub-opt} \\
+	&{ {{f}\bigg( \frac{{{{\btheta}}'\bx_{a_i}^{{(k)}}}}{{{m_{i}^{{(k)}}}}} \bigg)}} < {{{f}\bigg( \frac{{{{\btheta}}'\bx_{a_{\tilde i}}^{{(k)}}}}{{{m^{{(k)}}_{{\tilde i}}}}} \bigg)}}, \qquad \forall i, \, \tilde{i} \in [\kern-0.15em[ \tilde\scrA^{{(k)}} 
+	]\kern-0.15em]
+	~{\text{ s}}{\text{.t}}{\text{. }}\frac{{{{\btheta}}'\bx_{a_i}^{{(k)}}}}{{{m_{i}^{{(k)}}}}} < \frac{{{{\btheta}}'\bx_{a_{\tilde i}}^{{(k)}}}}{{{m^{{(k)}}_{{\tilde i}}}}}; \,\forall k \in [\kern-0.15em[ \scrK 
+	]\kern-0.15em],  \label{monoto} \\
+	& \bepsilon \geq \textbf{0}, \quad 
+	{f} \in \scrH, \notag \\
+	&{f(0)} = 1, \label{normaliz} 
+\end{align}
+where $\bN_k$ is the node-link incidence matrix of the $k$-th network,
+$\by = \big( {{\by^{\bw} \in {\mathbb{R}^{| \scrV^{{(k)}} |}}};\, \bw
+  \in \scrW^{{(k)}}, k \in [\kern-0.15em[ \scrK ]\kern-0.15em]} \big)$,
+$\bepsilon = (\epsilon_k; \,k \in [\kern-0.15em[ \scrK ]\kern-0.15em])$
+are decision vectors, $\by^{\bw}$ is a dual variable which can be
+interpreted as the ``price'' of $\bd^{\bw}$, $\gamma > 0$ is a
+regularization parameter, $\| {f} \|^2_{\scrH}$ denotes the squared norm
+of $f(\cdot)$ in $\scrH$, \eqref{dual-feasi} is for dual feasibility,
+\eqref{sub-opt} is the suboptimality (primal-dual gap) constraint,
+\eqref{monoto} enforces $f(\cdot)$ to be increasing, and
+\eqref{normaliz} is for normalization purposes (see \eqref{costMulti}).
+Note that a smaller $\gamma$ should result in recovering a ``tighter''
+$f(\cdot)$ in terms of data reconciliation whereas a bigger $\gamma$
+would lead to a ``better'' $f(\cdot)$ in terms of generalization
+properties.
+	
+It can be seen that the above formulation is still too abstract for us
+to solve, because it is an optimization over functions. To make it
+tractable, in the following, we specify $\scrH$ by picking its
+\textit{reproducing kernel} \cite{evgeniou2000regularization} as a
+polynomial ${\phi}(x, y) \defeq ( c + xy )^n$ for some choice of $c \geq
+0$ and $n \in \mathbb{N}$. Then, writing
+	\[\phi\left( {x,y} \right) = {\left( {c + xy} \right)^n} = \sum\limits_{j = 0}^n {{n \choose j}{c^{n - j}}{x^j}{y^j}}, \]
+	by \cite[(3.2), (3.3), and (3.6)]{evgeniou2000regularization},
+	we instantiate invVI-1 as \cite{CDC17} 
+\begin{align}
+	\text{(invVI-2)}  \notag \\
+	\mathop {\min }\limits_{\bbeta ,\by,\bepsilon} {\text{  }}& \|\bepsilon\| + \gamma \sum\limits_{j = 0}^n {\frac{{\beta _j^2}}{{{n \choose j}{c^{n - j}}}}} \label{inverVI2-multi} \\
+	\text{s.t.}{\text{  }}&{\textbf{e}}_{iu}'\bN'_k{\by^\bw} \leq t_{iu}^{{0}}{\sum\limits_{j = 0}^n {{\beta _j}\bigg( \frac{{{{\btheta}}'\bx_{a_i}^{{(k)}}}}{{{m_{i}^{{(k)}}}}} \bigg)} ^j}, \qquad \forall i \in [\kern-0.15em[ \tilde\scrA^{{(k)}} 
+	]\kern-0.15em], ~u \in [\kern-0.15em[ \tilde\scrU 
+	]\kern-0.15em], ~\bw \in {\scrW^{{(k)}}}, ~k \in [\kern-0.15em[ \scrK 
+	]\kern-0.15em],  \notag \\
+	&\sum\limits_{i=1}^{|\tilde\scrA^{{(k)}}|} {\bigg({\sum\limits_{j = 0}^n {{\beta _j}\bigg( \frac{{{{\btheta}}'\bx_{a_i}^{{(k)}}}}{{{m_{i}^{{(k)}}}}} \bigg)} ^j}\bigg)} \sum\limits_{u=1}^{|\tilde\scrU|} {t_{iu}^{{0}}{x_{iu}}} - \sum\limits_{\bw \in {\scrW_k}} {\left( {{\bd^\bw}} \right)'{\by^\bw}}  \leq {\epsilon_k},  \qquad \forall k \in [\kern-0.15em[ \scrK 
+	]\kern-0.15em],  \notag \\
+	&{\sum\limits_{j = 0}^n {{\beta _j}\bigg( \frac{{{{\btheta}}'\bx_{a_i}^{{(k)}}}}{{{m_{i}^{{(k)}}}}} \bigg)} ^j} < {\sum\limits_{j = 0}^n {{\beta _j}\bigg( \frac{{{{\btheta}}'\bx_{a_{\tilde i}}^{{(k)}}}}{{{m^{{(k)}}_{{\tilde i}}}}} \bigg)} ^j}, \qquad \forall i, \, \tilde{i} \in [\kern-0.15em[ \tilde\scrA^{{(k)}} 
+	]\kern-0.15em]
+	~{\text{ s}}{\text{.t}}{\text{. }}\frac{{{{\btheta}}'\bx_{a_i}^{{(k)}}}}{{{m_{i}^{{(k)}}}}} < \frac{{{{\btheta}}'\bx_{a_{\tilde i}}^{{(k)}}}}{{{m^{{(k)}}_{{\tilde i}}}}}; \,\forall k \in [\kern-0.15em[ \scrK 
+	]\kern-0.15em],  \notag \\
+	& \bepsilon \geq \textbf{0}, \notag \\
+	&{\beta _0} = 1, \notag 
+\end{align}
+where the function $f(\cdot)$ in invVI-1 is parametrized by $\bbeta =
+\left( {{\beta _i};\;i = 0, 1, \ldots ,n} \right)$.  Assuming an optimal
+${\bbeta ^*} = \left( {\beta _j^*;\,j = 0,1, \ldots ,n} \right)$ is
+obtained by solving \eqref{inverVI2-multi}, then our estimator for the
+cost function $f(\cdot)$ is
+\begin{align}
+	\hat f\left( x \right) = \sum\limits_{j = 0}^n {\beta _j^*{x^j}}  = 1 + \sum\limits_{j = 1}^n {\beta _j^*{x^j}}.  \label{costEstimator}
+\end{align}
+	
+It is worth pointing out that, in the above QP formulations, the
+parameter vector ${\btheta}$ and the set of vehicle classes
+$\tilde{\scrU}$ have been assumed to be the same for all $|\scrK|$
+networks. We note that in \eqref{costMulti} what essentially gets
+involved is only the weighed sum of link flows from different classes of
+vehicles (other than the link flow of each single vehicle class). It
+turns out that, similar to our previous work on single-class networks
+\cite{CDC16,IFAC17}, we are still very likely to be able to recover the
+cost functions with satisfactory accuracy from such weighted sum of link
+flows.
+
+\section{The Joint Problem} \label{sec:joint}
+	
+Different from previous works, in this section we solve a joint problem
+to recover the cost function $f(\cdot)$ (specifically, the coefficient
+vector $\bbeta = \left( {{\beta _j};\,j = 0, 1, \ldots ,n} \right)$ with
+$\beta_0 = 1$; cf. \eqref{costEstimator}), hence $\bt$, and adjust the
+OD demand vector $\bg$.  To simplify notation, for any given feasible
+$\bbeta$ (determining $f(\cdot)$, hence $\bt$) and $\bg$, let
+$\bx\left(\bbeta, \bg \right) = \big( {x_{iu}}\left(\bbeta, \bg \right);
+\, i \in [\kern-0.15em[ \tilde \scrA ]\kern-0.15em],u \in [\kern-0.15em[
+\tilde \scrU ]\kern-0.15em]\big)$ be the optimal solution to
+$\text{VI}(\bt,\scrF)$.
+	
+Assume that we have observed an equilibrium flow vector, denoted by
+$\bx^* = \big( {x^*_{iu}; \,i \in [\kern-0.15em[ \tilde\scrA
+  ]\kern-0.15em], u \in [\kern-0.15em[ \tilde\scrU ]\kern-0.15em]}
+\big)$, and that an initial demand vector ${\bg^0}$ is available. We
+seek to solve the following bi-level optimization problem, which is a
+variant of \cite[(1)-(2)]{spiess1990gradient},
+\cite[(1)-(8)]{noriega2007multi}, and \cite[(9)]{IFAC17}:
+\begin{align}
+	\text{(BiLev)} \quad \mathop {\min }\limits {\text{  }}&F\left(\bbeta, \bg \right) \defeq
+	{\gamma _1}\sum\limits_{i = 1} ^{ |\tilde \scrW| }\sum\limits_{u = 1}^{|\tilde \scrU|} {{{\left( {{g_{iu}} - g^0_{iu}} \right)}^2}} + \gamma_2\sum\limits_{\check{i} = 1}^{|\tilde \scrA|} {\sum\limits_{\check{u} = 1}^{|\tilde \scrU|}{{{\left( {{x_{\check{i}\check{u}}}\left(\bbeta, \bg \right) - {{x}^*_{\check{i}\check{u}}}} \right)}^2}}} \label{bilevel}  \\
+	\text{s.t.}\quad & {\bbeta \geq \textbf{0},\,\beta_0 = 1, \,\bg \geq \textbf{0}},  \notag
+\end{align}
+where $\gamma_1, \gamma_2 \geq 0$ are two weight parameters; the first
+term penalizes moving too far away from the initial demand, and the
+second term ensures that the optimal solution to TAP is close to the
+flow observation. Note that BiLev \eqref{bilevel} is more general than
+its counterparts (IP-2, in particular) considered in
+\cite{spiess1990gradient,noriega2007multi,IFAC17}.  It is also worth
+pointing out that $F\left(\bbeta, \bg \right)$ is bounded below by $0$
+which guarantees the convergence of the algorithm (see
+Alg.~\ref{alg:joint}) that we will apply.
+		
+To solve BiLev numerically, thus alternatively recovering $\bbeta$ and
+adjusting $\bg$ in an iterative manner, we leverage a gradient-based
+algorithm (Alg.~\ref{alg:joint}). Let us first derive an approximation
+to the gradient of $F(\bbeta,\bg)$ (defined in \eqref{bilevel}) with
+respect to $\bg$. To that end, fix $\check{i} \in [\kern-0.15em[ \tilde
+\scrA ]\kern-0.15em], ~\check{u} \in [\kern-0.15em[ \tilde \scrU
+]\kern-0.15em]$, and a feasible pair $(\bbeta, \bg)$.  By flow
+conservation, we have
+\begin{align}
+	{x_{\check{i}\check{u}}}\left( {\bbeta ,\bg} \right) = \sum\limits_{i \in [\kern-0.15em[ \tilde \scrW 
+			]\kern-0.15em]} {\sum\limits_{r \in {\scrR^i_{\check u}}}} {\delta_r^{a(\check{i},\check{u})} p_{\check{u}}^{ir}g_{i\check{u}} }  = \sum\limits_{i \in [\kern-0.15em[ \tilde \scrW 
+			]\kern-0.15em]}g_{i\check{u}} {\sum\limits_{r \in {\scrR^i_{\check u}}}} {\delta_r^{a(\check{i},\check{u})} p_{\check{u}}^{ir} },   \label{linkflow}
+\end{align}
+where ${\scrR^i_{\check u}}$ denotes the set of feasible routes
+associated with OD pair $i$ and user class $\check u$,
+$p_{\check{u}}^{ir}$ is the probability for user class $\check{u}$ to
+select route $r \in {\scrR^i_{\check u}}$, and
+\begin{align}
+	\delta_r^{a(\check{i},\check{u})} \defeq \left\{ \begin{gathered}
+	1,{\text{ if route }} r \text{ uses link } a(\check{i},\check{u}), \hfill \\
+	0,{\text{ otherwise}}{\text{.}} \hfill \\  
+	\end{gathered}  \right.   \label{delta}
+	\end{align}
+	Assuming that the route probabilities are locally constant, then \eqref{linkflow} implies \cite{noriega2007multi, spiess1990gradient}
+		\begin{align}
+		\frac{{\partial {x_{\check i \check u}}\left(\bbeta, \bg  \right)}}{{\partial {g _{iu}}}} = \left\{ \begin{gathered}
+		{\sum\limits_{r \in {\scrR^i_{\check u}}}} {\delta_r^{a(\check{i},\check{u})} p_{\check{u}}^{ir} },{\text{ if }} \check{u} = u, \hfill \\
+		0,{\text{ otherwise}}{\text{,}} \hfill \\  
+		\end{gathered}  \right. 
+		\qquad \forall {i} \in [\kern-0.15em[ \tilde \scrW 
+		]\kern-0.15em], ~{u} \in [\kern-0.15em[ \tilde \scrU 
+		]\kern-0.15em].  \label{jacobtmp}
+\end{align}
+Further, for OD pair $i \in [\kern-0.15em[ \tilde \scrW 
+	]\kern-0.15em]$ and vehicle class $u \in [\kern-0.15em[ \tilde \scrU 
+	]\kern-0.15em]$, considering only the shortest route $r_{iu}(\bbeta,\bg)$ based on the travel latency cost (i.e., travel time), we have 
+\begin{align}
+	\frac{{\partial {x_{\check i \check u}}\left(\bbeta, \bg  \right)}}{{\partial {g _{iu}}}} \approx {\delta _{{r_{iu}(\bbeta,\bg)}}^{a(\check{i},\check{u})}} &= \left\{ \begin{gathered}
+	1,{\text{ if }}a(\check{i},\check{u}) \in {r_{iu}(\bbeta,\bg)}, \hfill \\
+	0,{\text{ otherwise}}{\text{,}} \hfill \\  
+	\end{gathered}  \right.  \notag \\ 
+	&= \left\{ \begin{gathered}
+	1,{\text{ if }} \check{u} = u \text{ and } a(\check{i},\check{u}) \in {r_{iu}(\bbeta,\bg)}, \hfill \\
+	0,{\text{ otherwise}}{\text{,}} \hfill \\  
+	\end{gathered}  \right.  \label{jacob}
+\end{align}
+where $a(\check{i},\check{u}) \in {r_{iu}(\bbeta,\bg)}$ indicates that
+the route $r_{iu}(\bbeta,\bg)$ uses link $a(\check{i},\check{u})$. Note
+that $a(\check{i},\check{u}) \notin {r_{iu}(\bbeta,\bg)}$ for all $
+\check u \neq u$. Note also that we have assumed the partial derivatives
+do exist; if not, one can replace them with subgradients. Such partial
+derivatives as in the BiLev setting typically do not have an exact
+analytical expression and we in turn use a certain approximation
+technique; a comprehensive discussion on the existence and approximation
+of such type of partial derivatives can be found in
+\cite{patriksson2004sensitivity}. By \eqref{jacob} we obtain an
+approximation to the Jacobian matrix
+\begin{align}
+	\left[ {\frac{{\partial {x_{\check{i}\check{u}}}\left(\bbeta, {{\bg}} \right)}}{{\partial {g _{iu}}}};\, \check{i} \in [\kern-0.15em[ \tilde \scrA 
+		]\kern-0.15em],\,\check{u} \in [\kern-0.15em[ \tilde \scrU 
+		]\kern-0.15em],\,i \in [\kern-0.15em[ \tilde \scrW 
+		]\kern-0.15em], \, u \in [\kern-0.15em[ \tilde \scrU 
+		]\kern-0.15em]} \right]. \label{jacobMat}
+\end{align}
+Let us now compute the gradient of $F\left(\bbeta, \bg \right)$ with
+respect to $\bg$. We have
+\begin{align}
+	\nabla_{\bg} F\left(\bbeta, \bg  \right) &= \left( {\frac{{\partial F\left(\bbeta, \bg  \right)}}{{\partial {g _{iu}}}}};\, i \in [\kern-0.15em[ \tilde \scrW 
+	]\kern-0.15em], \, u \in [\kern-0.15em[ \tilde \scrU 
+	]\kern-0.15em] \right) \notag \\
+	&= \bigg( 2 \gamma_1 \left( {{g_{iu}} - g^0_{iu}} \right) + 2 \gamma_2 {\sum\limits^{|\tilde \scrA|}_{\check{i} = 1} {\sum\limits^{|\tilde \scrU|}_{\check u = 1} {\left( {{x_{\check{i}\check{u}}}\left(\bbeta, \bg  \right) - {{ x}^*_{\check{i}\check{u}}}} \right)\frac{{\partial {x_{\check{i}\check{u}}}\left(\bbeta, \bg  \right)}}{{\partial {g_{iu}}}}} ;\,i \in [\kern-0.15em[ \tilde \scrW 
+			]\kern-0.15em], \, u \in [\kern-0.15em[ \tilde \scrU 
+			]\kern-0.15em]}} \bigg) \notag \\
+	&= \bigg(2 \gamma_1 \left( {{g_{iu}} - g^0_{iu}} \right) + 2 \gamma_2 {\sum\limits^{|\tilde \scrA|}_{\check{i} = 1} {{\left( {{x_{\check{i}u}}\left(\bbeta, \bg  \right) - {{x}^*_{\check{i}u}}} \right)\frac{{\partial {x_{\check{i}u}}\left(\bbeta, \bg  \right)}}{{\partial {g_{iu}}}}} ;\,i \in [\kern-0.15em[ \tilde \scrW 
+			]\kern-0.15em], \, u \in [\kern-0.15em[ \tilde \scrU 
+			]\kern-0.15em]}} \bigg). \label{gradient}
+\end{align}
+
+	
+\begin{rmk} \label{rem:shortest} \em{Similar to \cite{IFAC17,ieee18},
+    the reasons why we consider only the shortest routes for the purpose
+    of calculating the Jacobian include: (\rmnum{1}) GPS navigation is
+    widely-used by vehicle drivers so that they tend to always select
+    the shortest routes between their OD pairs. (\rmnum{2}) Considering
+    the shortest routes only would significantly simplify the
+    calculation of the route-choice probabilities. (\rmnum{3}) Extensive
+    numerical experiments show that such an approximation as
+    \eqref{jacob} for the Jacobian matrix performs satisfactorily well.}
+\end{rmk}
+
+We summarize the procedures for alternatively recovering the cost
+function and adjusting the OD demand vector as Alg.~\ref{alg:joint},
+whose convergence will be proven in the following proposition.
+	
+\begin{algorithm}
+\caption{Alternatively recovering the travel latency cost function and
+  adjusting the OD demand vector.}
+\label{alg:joint}
+\begin{algorithmic}[1]
+			\Require  $\left( {\mathcal{V}, \mathcal{A}, \mathcal{W}}
+			\right)$: road network; ${\bx^*}$: the observed flow vector; ${\bg^0}$: the initial demand vector; $\rho$, $T$: two positive integer parameters;
+			$\epsilon_1 \geq 0$, $\epsilon_2 > 0$: two real parameters. 
+			\State \textbf{Step 0:} Initialization. Using $\bg^{{0}}$ and ${\bx^*}$ as the input, solve \eqref{inverVI2-multi} to obtain $\bbeta^{{0}}$. Plug $\bbeta^{{0}}$ into \eqref{costEstimator} to obtain an initial cost function $\hat f^0(\cdot)$; then, with this cost function and the demand vector $\bg^{{0}}$, solve the forward problem $\text{VI}(\bt,\scrF)$ (using the Method of Successive Averages (MSA) \cite{noriega2007algorithmic}; see Alg.~\ref{alg:msa}) to obtain $\bx^{{0}}$. Set $l=0$. If $F\left(\bbeta^0,\bg^{{0}}\right) = 0$, terminate and return $\bbeta^0$, $\bg^0$; otherwise, go onto Step 1.
+			\State \textbf{Step 1:} Computation of a descent direction. Calculate ${\bh^l} =  - \nabla_{\bg} F\left(\bbeta^l, {{\bg ^l}} \right)$ by \eqref{gradient}.
+			\State \textbf{Step 2:} Calculation of a search direction. For $i \in [\kern-0.15em[ \scrW 
+			]\kern-0.15em], \,u \in [\kern-0.15em[ \scrU 
+			]\kern-0.15em]$, set 
+			$$\bar h_{iu}^l = \left\{ \begin{gathered}
+			h_{iu}^l,{\text{  if }}\left( {g _{iu}^l > \epsilon_1 } \right){\text{ or }}\left( {g _{iu}^l \leq \epsilon_1 {\text{ and }}h_{iu}^l > 0} \right){\text{, }} \hfill \\
+			0,{\text{  otherwise.}} \hfill \\ 
+			\end{gathered}  \right.$$
+			\State \textbf{Step 3:} Determination of a step-size using Armijo-type line search. 
+			\begin{itemize}
+				\item[] 		\textbf{3.1:} Calculate the maximum possible step-size $\alpha _{\max }^l = \min \left\{ { - {{g _{iu}^l}}\big/{{\bar h_{iu}^l}}; \, \bar h_{iu}^l < 0, \,i \in [\kern-0.15em[ \scrW 
+					]\kern-0.15em], \,u \in [\kern-0.15em[ \scrU 
+					]\kern-0.15em]} \right\}$. 
+				\item[] 		\textbf{3.2:} Determine ${\alpha ^l} = \mathop {\arg \min }\limits_{\alpha  \in \scrS} F\left(\bbeta^l, {{\bg ^l} + \alpha {{\bar {\bh}}^l}} \right)$ with $\scrS \defeq \left\{{\alpha _{\max }^l,{{\alpha _{\max }^l} \mathord{\left/
+							{\vphantom {{\alpha _{\max }^l} \rho }} \right.
+							\kern-\nulldelimiterspace} \rho },{{\alpha _{\max }^l} \mathord{\left/
+							{\vphantom {{\alpha _{\max }^l} {{\rho ^2}}}} \right.
+							\kern-\nulldelimiterspace} {{\rho ^2}}}, \ldots ,{{\alpha _{\max }^l} \mathord{\left/
+							{\vphantom {{\alpha _{\max }^l} {{\rho ^{T - 1}}}}} \right.
+							\kern-\nulldelimiterspace} {{\rho ^{T}}}}}, 0 \right\}$.
+			\end{itemize}
+			\State \textbf{Step 4:} Update and termination. 
+			\begin{itemize}
+				\item[] \textbf{4.1:} 
+					Set ${\bg ^{l + 1}} = {\bg ^l} + {\alpha ^l}{{\bar \bh}^l}$. If $\frac{{F\left(\bbeta^l, {{\bg^l}} \right) - F\left(\bbeta^{l}, {{\bg^{l + 1}}} \right)}}{{F\left(\bbeta^0, {{\bg^0}} \right)}} < {\epsilon _2}$, stop iteration and return $\bbeta^{l}$, $\bg^{l+1}$; otherwise, go onto Step 4.2.
+				\item[] \textbf{4.2:} Using $\bg^{{l+1}}$ and ${\bx^*}$ as the input, solve \eqref{inverVI2-multi} to obtain $\bbeta^{{l+1}}$. Plug $\bbeta^{{l+1}}$ into \eqref{costEstimator} to obtain a new cost function $\hat f^{l+1}(\cdot)$; then, with this cost function and the demand vector $\bg^{{l+1}}$, solve $\text{VI}(\bt,\scrF)$ to obtain $\bx^{{l+1}}$. If $F(\bbeta^{l+1},\bg^{l+1}) > F(\bbeta^l,\bg^{l+1})$, reset $\bbeta^{l+1} = \bbeta^l$. Set $l=l+1$ and return to Step 1.	
+			\end{itemize}
+	\end{algorithmic}
+\end{algorithm}
+
+	
+\begin{prop} \label{prop1} Alg.~\ref{alg:joint} converges. \end{prop}
+\pf  If the initial demand vector $\bg^{{0}}$ satisfies
+    $F\left(\bbeta^0,\bg^{{0}}\right) = 0$, then, by Step 0, the
+    algorithm terminates (trivial case). Otherwise, we have
+    $F\left(\bbeta^0,\bg^{{0}}\right) > 0$, and it is seen from
+    \eqref{bilevel} that the objective function
+    $F\left(\bbeta,\bg\right)$ has a lower bound $0$. In addition, by
+    the line search and the update steps (Steps 3.2 and 4.1, in
+    particular), we obtain
+\begin{align} 
+F\left(\bbeta^{l}, {{\bg^{l + 1}}} \right) = F\left(\bbeta^l, {{\bg^l} + {\alpha ^l}{{\bar \bh}^l}} \right) = \mathop {\min }\limits_{\alpha  \in \scrS} F\left(\bbeta^l, {{\bg^l} + \alpha {{\bar \bh}^l}} \right) \leq F\left(\bbeta^l, {{\bg^l}} \right), \, \forall l, \label{nonInc}
+\end{align}
+where the last inequality holds due to $0 \in \scrS$. In addition, by
+Step 4.2 it is assured that $F\left(\bbeta^{l+1}, {{\bg^{l + 1}}}
+\right) \le F\left(\bbeta^{l}, {{\bg^{l + 1}}} \right) $ (cf. Remark
+\ref{rmk:alg1}), which, combined with \eqref{nonInc}, indicates that the
+nonnegative objective function $F(\bbeta,\bg)$ in \eqref{bilevel} is
+non-increasing. Thus, by the well-known monotone convergence theorem,
+the convergence of the algorithm can be guaranteed.
+\qed
+	
+	
+\begin{rmk} \label{rmk:alg1} \em{Regarding Steps 0 and 4.2 of
+    Alg.~\ref{alg:joint}, a natural question could be raised: Shouldn't
+    $\bx^{l}$ ($\forall l \ge 0$) obtained in that way be equal to
+    $\bx^*$? We note that $\bx^{l}$ is typically not equal to ${\bx^*}$,
+    because ${\bx^*}$ does not necessarily satisfy flow conservations
+    for all OD pairs corresponding to $\bg^{l}$ when $\bg^{l} \ne \bg^*$
+    ($\bg^*$ denotes the ground-truth OD demand vector), but $\bx^{l}$
+    does. To put it another way, if $\bg^{l} \ne \bg^*$, then we have
+    $\bx^* \notin \scrF^l$, but $\bx^l \in \scrF^l$, where $\scrF^l$ is
+    the feasible set $\scrF$ (see \eqref{feasi}) instantiated under
+    demand vector $\bg^l$. It is also worth pointing out that,
+    mathematically, such schemes for ``tuning'' the cost function as
+    elaborated in Steps 0 and 4.2, would serve to help decrease the
+    objective function value such that $F(\bbeta^{l+1},\bg^{l+1}) \le
+    F(\bbeta^l,\bg^{l+1})$.}
+\end{rmk}
+	
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\begin{algorithm}
+	\caption{Method of Successive Averages (MSA) \cite{noriega2007algorithmic}}
+	\label{alg:msa}
+	\begin{algorithmic}[1]
+		\Require $\big( {\tilde\scrV, \tilde\scrA, \tilde\scrW} \big)$: road network; $\tilde{\scrU}$: set of vehicle classes; $f(\cdot)$: cornerstone cost function in \eqref{costMulti}; $\bg_u$, $u \in [\kern-0.15em[ \tilde\scrU 
+		]\kern-0.15em]$: demand vector for vehicle class $u$; $\epsilon_3 > 0$: a real parameter; $L$: maximum number of iterations. 
+		\State \textbf{Step 0:} Initialization. Initialize link flows $x^{\ell}_{iu} = 0$ for $i \in [\kern-0.15em[ \tilde\scrA]\kern-0.15em], u \in [\kern-0.15em[ \tilde\scrU 
+		]\kern-0.15em] $; set iteration counter $\ell=0$.
+		\State \textbf{Step 1:} Compute new extremal flows. Set $\ell = \ell + 1$.
+		
+		\begin{itemize}
+			\item[] \textbf{1.1:} Update link travel costs based on current link flows: $t^{\ell}_{iu} = {t_{iu}}( {{x^{\ell-1}_{i1}}, \ldots ,{x^{\ell-1}_{i|\tilde\scrU|}}} ), \, \forall i \in [\kern-0.15em[ \tilde\scrA 
+			]\kern-0.15em], u \in [\kern-0.15em[ \tilde\scrU 
+			]\kern-0.15em]$.
+			
+			\item[] \textbf{1.2:} Carry out ``all-or-nothing'' assignment of the demands $\bg_u$ on current shortest paths to obtain $y^{\ell}_{iu}$.
+			
+		\end{itemize}
+		\State \textbf{Step 2:} Update link flows via
+		\[x^{\ell}_{iu} = x^{\ell-1}_{iu} + {\lambda ^\ell}\left( {y^{\ell}_{iu} - x^{\ell-1}_{iu}} \right),\]
+		where ${\lambda ^\ell} = {1 \mathord{\left/
+				{\vphantom {1 l}} \right.
+				\kern-\nulldelimiterspace} \ell}$.
+		
+		\State \textbf{Step 3:} Stopping criterion (slightly different than that in \cite{noriega2007algorithmic}).
+		Compute the \textit{Relative Gap} ($\textit{RG}$)
+		\[\text{RG} = \frac{{{{\left\| {{\bx^{\ell}} - {\bx^{\ell-1}}} \right\|}}}}{{{{\left\| {{\bx^{\ell}}} \right\|}}}}.\]
+		If $\text{RG} < \epsilon_3$ or $\ell \ge L$, terminate; otherwise, return to Step 1.
+	\end{algorithmic}
+\end{algorithm}
+
+	
+	
+\begin{rmk}
+	\em{Alg.~\ref{alg:joint} is a variant of the algorithms proposed in \cite{spiess1990gradient} and \cite{lundgren2008heuristic}. We use a different method to calculate the \textit{step-sizes} (resp., \textit{Jacobian matrix}) than that in \cite{spiess1990gradient} (resp., \cite{lundgren2008heuristic}). 
+	Moreover, as a subroutine, Alg.~\ref{alg:msa} is borrowed from \cite{noriega2007algorithmic}, which has the advantages of being easy to implement and numerically stable when applied to multi-class models.
+	}
+\end{rmk}
+
+\begin{rmk} \label{rem:gamma1} \em{Let us fix $\gamma_2=1$ in
+    \eqref{bilevel} hereafter. Intuitively, the closer the initial
+    $\bg^0$ to the ground truth $\bg^*$, the larger the $\gamma_1$ we
+    should set; otherwise the contribution of the first term to the
+    objective function will be small. In practice, however, we typically
+    do not have exact information about how far $\bg^0$ is from $\bg^*$;
+    we therefore need to appropriately tune $\gamma_1$. One possible
+    criterion is that, fixing the parameters involved in
+    Alg.~\ref{alg:joint}, a ``good'' $\gamma_1$ should lead to a
+    reduction of the objective function value of BiLev as much as
+    possible.  In Sec.~\ref{sec:num} we will present our findings of how
+    to set an appropriate $\gamma_1$ through numerical studies using a
+    benchmark network.}
+\end{rmk}
+
+	
+\begin{rmk}
+  \em{Note that, formally, if $|\tilde \scrU| = 1$, then all the above
+    analytical results derived for the multi-class transportation
+    networks reduce to the single-class case. We should keep in mind,
+    however, that the behavior of the two models could be quite
+    different. For instance, Assump. \ref{cdc16-assumption1} (the strong
+    monotonicity assumption) on the cost function is hard to verify
+    for general multi-class networks ($|\tilde \scrU| > 1$).}
+\end{rmk}
+	
+	
+\section{Numerical results} \label{sec:num}
+
+
+In this section, we elaborate on numerical experiments conducted on both
+benchmark networks \cite{BarGera16} and an actual road network. First,
+over three benchmark networks ranging from small-sized to large-sized
+(Sioux-Falls, Berlin-Tiergarten, and Anaheim) we adopt the single-class
+model by assuming only one class of vehicles (private cars). Then, for
+each of the benchmark networks, we simulate a multi-class model by
+assuming we have both private cars, indexed by Class 1, and commercial
+trucks, indexed by Class 2, thus ending up with a multi-class model
+where $|\tilde \scrU| = 2$. Finally, leveraging actual traffic data and
+recently developed techniques, we apply our approach to a large highway
+network of Eastern Massachusetts (EMA), over which both a single-class
+(private cars only) model and a multi-class ($|\tilde \scrU| = 2$; both
+private cars and commercial trucks) model are considered.
+
+In all the benchmark network single-class model scenarios, for each OD
+pair, we obtain the initial demand by scaling the ground truth demand
+(available via \cite{BarGera16}) with a uniform distribution over $[0.9,
+1.1]$.  In all the benchmark network multi-class model scenarios, we
+divide the original ground truth demand (available via \cite{BarGera16})
+proportionally, $80\%$ for private cars and $20\%$ for commercial
+trucks, to obtain the ground truth demand vectors accordingly. For each
+OD pair and for each vehicle class, the initial demand is obtained by
+scaling the corresponding ground truth demand with a uniform
+distribution over $[0.9, 1.1]$. On the other hand, for the EMA highway
+network scenarios, we leverage real traffic data to estimate the initial
+demand vectors; for details, see the Appendix.
+
+
+For both single-class and multi-class models, we take the ground truth
+$f\left(\cdot\right)$ to be $f\left(z\right) = 1 + 0.15z^4, \;z \geq 0$,
+for the Sioux-Falls and Anaheim networks, and $f\left(z\right) = 1 +
+z^4, \;z \geq 0$, for the Berlin-Tiergarten network. Whereas, for the
+EMA highway subnetwork we do not have a ground truth
+$f\left(\cdot\right)$; we take $f\left(z\right) = 1 + 0.15z^4, \;z \geq
+0$, (the well-known BPR function) as a reference. Regardless of the
+benchmark networks or the EMA highway network, in all the multi-class
+model scenarios, taking account of the relatively lower speeds and
+larger sizes for trucks compared to cars, we assume the flow weight
+vector to be $\btheta = (1.0, 2.0)$, and assume ${t^{{0}}_{i1}} = 1.0
+\times t^{{0}}_{i}$ and ${t^{{0}}_{i2}} = 1.1 \times t^{{0}}_{i}$, where
+$t^{{0}}_{i}$ is the \textit{reference free-flow travel time} (available
+via \cite{BarGera16}) for any \textit{physical} link indexed by $i$.
+
+For each of the benchmark network, the observed flow vector ${\bx^*}$ is
+generated by solving the forward problem $\text{VI}(\bt,\scrF)$ via
+Alg.~\ref{alg:msa} (with the corresponding ground truth demand and cost
+function as input). While for the EMA highway network, ${\bx^*}$ is
+inferred from the collected actual speed data and the flow capacity
+data; see the Appendix for details.
+
+First, to investigate how the settings of $\gamma_1$ and $\gamma_2$ in
+\eqref{bilevel} would affect the performance of Alg.~\ref{alg:joint} (in
+terms of the reduction of the objective function value of BiLev), we
+conduct numerical experiments over the Sioux-Falls benchmark network
+single-class model by fixing $\gamma_2 = 1$ and letting $\gamma_1$ vary
+over a candidate set $\{0, 0.001, 0.01, 0.1, 1, 10, 100, 1000\}$.  We
+set $n=6$, $c = 3.5$, and $\gamma = 1.0$ in
+\eqref{inverVI2-multi}. When implementing Algs.~\ref{alg:joint} and
+\ref{alg:msa}, we set $\rho = 2$, $T = 10$, $\epsilon_1 =0$, $\epsilon_2
+= 10^{-20}$, $\epsilon_3 = 10^{-6}$, and $L = 1000$. The key outputs are
+summarized in Tab. \ref{tab3}, from which we see that under the
+particular settings of this study, a relatively small $\gamma_1$ ($0 \le
+\gamma_1 \le 1$) would lead to a significant reduction of the objective
+function value of BiLev. We should keep in mind, however, that as noted
+in Remark \ref{rem:gamma1}, tuning $\gamma_1$ would be typically
+inevitable for a different scenario, and we could select a ``good''
+$\gamma_1$ that would lead to a reduction of the objective function
+value of BiLev as much as possible.
+
+
+Next, to ensure comparison fairness and without loss of generality, for
+all scenarios we universally take $\gamma_1 = 1$ and $\gamma_2=1$ in
+\eqref{bilevel}. When implementing Algs.~\ref{alg:joint} and
+\ref{alg:msa}, we set $\rho = 2$, $T = 10$, $\epsilon_1 =0$, $\epsilon_2
+= 10^{-20}$, $\epsilon_3 = 10^{-6}$, and $L = 1000$; these parameters
+could be tuned representing the trade-off between the computation burden
+and the output accuracy.
+
+In the following, for each and every benchmark network we plot three
+types of key quantities at each iteration $l$ of Alg.~\ref{alg:joint}:
+the normalized objective function value $F^l/F^0 \defeq
+F(\bbeta^l,\bg^l)/F(\bbeta^0,\bg^0)$, the normalized demand difference
+w.r.t. ground truth $\|\bg^l-\bg^*\|/\|\bg^*\|$ for the single-class
+model (resp., $\|\bg_u^l-\bg_u^*\|/\|\bg_u^*\|$ for the multi-class
+model), where $ \bg^*$ (resp., $\bg_u^*$) denotes the ground truth, and
+the cost function estimates $\hat f^l(\cdot)$. On the other hand, for
+the EMA highway network, since we do not have the ground truth demand
+vector, we only plot the other two types of key quantities. Moreover,
+for convenience of comparisons, in Tabs. \ref{tab1} and \ref{tab2} we
+summarize some of the results in detail.
+
+\subsection{Sioux-Falls network}
+
+The Sioux-Falls network contains 24 zones (hence, $24 \times (24 - 1) =
+552$ OD pairs), 24 nodes, and 76 links.
+
+\subsubsection*{Single-class model} 
+We use $n=6$, $c = 3.5$, and $\gamma = 1.0$ in \eqref{inverVI2-multi};
+note that, for a given network, using simulated data (demand vectors and
+the corresponding Wardrop equilibrium link flows), the values of $n,
+\;c, \;\gamma$ can be determined by cross-validation and then applied to
+new data. We plot selected outputs after executing Alg.~\ref{alg:joint}
+in Fig.~\ref{fig:uni_Sioux}. Fig.~\ref{fig:uni_objFun_Sioux} shows that,
+after 20 iterations, the objective function value of BiLev is reduced by
+more than $80\%$. Fig.~\ref{fig:uni_demandsDiff_biLev_Sioux} shows that,
+although the distance between the adjusted demand and the ground truth
+demand does not keep decreasing as the iteration count increases, the
+distance changes very slightly, meaning that the adjustment procedure
+does not alter the initial demand much. Fig.~\ref{fig:uni_CostSioux}
+shows that, a ``rough'' initial demand vector, combined with the
+observed flow vector, can already enable us to obtain a very accurate
+estimate for the cost function and, as the iteration count increases,
+the estimate of the cost function gets closer and closer to the ground
+truth (see the green curve corresponding to $l=20$, which is the closest
+to the red ground truth).
+
+\subsubsection*{Multi-class model} 
+We use $n=6$, $c = 3.5$, and $\gamma = 1.0$ in \eqref{inverVI2-multi},
+and we plot the outputs in Fig.~\ref{fig:Sioux}. Fig.~\ref{objFun_Sioux}
+shows that, after 5 iterations, the objective function value of BiLev is
+reduced by about $35\%$. Fig.~\ref{demandsDiff_biLev_Sioux} shows that,
+for either vehicle class (private car or commercial truck), though the
+distance between the adjusted demand and the ground truth would not
+always keep decreasing as the iteration count increases, the distance
+changes very slightly, meaning that the adjustment procedure does not
+alter the initial demand much. Fig.~\ref{fig:CostSioux} shows that the
+initial estimate of the cost function is already very close to the
+ground truth and, as iterations progress, the estimates remain very
+close to the ground truth.
+
+
+\begin{figure}[H]  
+	\centering
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/objFun_Sioux_1_1.pdf}
+		\caption{}
+		\label{fig:uni_objFun_Sioux}
+	\end{subfigure} 
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/demandsDiff_biLev_Sioux_1_1.pdf}
+		\caption{}
+		\label{fig:uni_demandsDiff_biLev_Sioux}
+	\end{subfigure}   
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/fitting_Sioux_1_1.pdf}
+		\caption{}
+		\label{fig:uni_CostSioux}
+	\end{subfigure}  
+	\caption{Key quantities and cost function estimations w.r.t.\
+          the joint iterations (Sioux-Falls; single-class): (a)
+          normalized objective function values; (b) demand differences
+          w.r.t.\ ground truth; (c) cost function estimates.}
+	\label{fig:uni_Sioux}
+\end{figure}
+	
+\begin{figure}[H]  
+	\centering
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/objFun_Sioux_multi_class_1_1.pdf}
+		\caption{}
+		\label{objFun_Sioux}
+	\end{subfigure} 
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/demandsDiff_biLev_Sioux_multi_class_1_1.pdf}
+		\caption{}
+		\label{demandsDiff_biLev_Sioux}
+	\end{subfigure}   
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/fitting_Sioux_multi_class_1_1.pdf}
+		\caption{}
+		\label{fig:CostSioux}
+	\end{subfigure}  
+	\caption{Key quantities and cost function estimations w.r.t.\
+          the joint iterations (Sioux-Falls; multi-class): (a)
+          normalized objective function values; (b) demand differences
+          w.r.t.\ ground truth; (c) cost function estimates.}
+	\label{fig:Sioux}
+\end{figure}
+	
+	
+\subsection{Berlin-Tiergarten network}
+
+The Berlin-Tiergarten network \cite{BarGera16} contains 26 zones (hence,
+$26 \times (26 - 1) = 650$ OD pairs), 361 nodes, and 766 links.
+
+\subsubsection*{Single-class model}
+ We use $n=6$, $c = 0.5$, and $\gamma = 0.001$ in \eqref{inverVI2-multi}.
+See Fig.~\ref{fig:uni_Tiergarten} for the
+results. Fig.~\ref{fig:uni_objFun_Tiergarten} shows that, after 19
+iterations, the objective function value of BiLev is reduced by more
+than $50\%$. Similar to the Sioux-Falls network single-class scenario,
+from Fig.~\ref{fig:uni_demandsDiff_biLev_Tiergarten} we see that the
+distance between the adjusted demand and the ground truth does not keep
+decreasing as iterations progress, but still, the distance changes very
+slightly, suggesting that the adjustment procedure does not alter the
+initial demand significantly. It is also seen from
+Fig.~\ref{fig:uni_CostTiergarten} that, as iteration count increases,
+the estimate of the cost function improves to some degree.  
+
+
+\subsubsection*{Multi-class model}
+We use $n=7$, $c = 1.5$, and $\gamma = 0.1$ in \eqref{inverVI2-multi}.
+See Fig.~\ref{fig:Tiergarten} for the
+results. Fig.~\ref{objFun_Tiergarten} shows that, after 9 iterations,
+the objective function value of BiLev is reduced by more than
+$12\%$. Fig.~\ref{demandsDiff_biLev_Tiergarten} shows that, for either
+vehicle class (private car or commercial truck), the distance between
+the adjusted demand and the ground truth keeps decreasing and the
+distance changes very slightly, meaning the adjustment procedure does
+not alter the initial demand much. Similar to the Sioux-Falls network
+multi-class scenario, from Fig.~\ref{fig:CostTiergarten} we see that,
+the initial estimate for the cost function is already very close to the
+ground truth, and as iterations advance, the estimates remain very close
+to the ground truth. 
+
+	
+\begin{figure}[H]  
+	\centering
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/objFun_Tiergarten_1_1.pdf}
+		\caption{}
+		\label{fig:uni_objFun_Tiergarten}
+	\end{subfigure} 
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/demandsDiff_biLev_Tiergarten_1_1.pdf}
+		\caption{}
+		\label{fig:uni_demandsDiff_biLev_Tiergarten}
+	\end{subfigure}   
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/fitting_Tiergarten_1_1.pdf}
+		\caption{}
+		\label{fig:uni_CostTiergarten}
+	\end{subfigure}   
+	\caption{Key quantities and cost function estimations w.r.t.\
+          the joint iterations (Berlin-Tiergarten; single-class): (a)
+          normalized objective function values; (b) demand differences
+          w.r.t.\ ground truth; (c) cost function estimates.}
+	\label{fig:uni_Tiergarten}
+\end{figure}
+
+\begin{figure}[H]  
+	\centering
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/objFun_Tiergarten_multi_class_1_1.pdf}
+		\caption{}
+		\label{objFun_Tiergarten}
+	\end{subfigure} 
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/demandsDiff_biLev_Tiergarten_multi_class_1_1.pdf}
+		\caption{}
+		\label{demandsDiff_biLev_Tiergarten}
+	\end{subfigure}   
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/fitting_Tiergarten_multi_class_1_1.pdf}
+		\caption{}
+		\label{fig:CostTiergarten}
+	\end{subfigure}   
+	\caption{Key quantities and cost function estimations w.r.t.\
+          the joint iterations (Berlin-Tiergarten; multi-class): (a)
+          normalized objective function values; (b) demand differences
+          w.r.t.\ ground truth; (c) cost function estimates.}
+	\label{fig:Tiergarten}
+\end{figure}
+
+	
+\subsection{Anaheim network}
+
+The Anaheim network \cite{BarGera16} contains 38 zones (hence, $38
+\times (38 - 1) = 1406$ OD pairs), 416 nodes, and 914 links.
+
+\subsubsection*{Single-class model}
+We use $n=6$, $c = 3.5$, and $\gamma = 1.0$ in
+\eqref{inverVI2-multi}. See Fig.~\ref{fig:uni_Anaheim} for the
+results. Similar observations can be made as those for the Sioux-Falls
+network single-class scenario; a minor difference is that (see
+Fig.~\ref{fig:uni_demandsDiff_biLev_Anaheim}) the distance between the
+adjusted demand and the ground truth demand keeps decreasing as the
+iteration count increases.
+	
+\subsubsection*{Multi-class model}
+We use $n=6$, $c = 1.5$, and $\gamma = 0.1$ in
+\eqref{inverVI2-multi}. See Fig.~\ref{fig:Anaheim} for the
+results. Similar observations can be made as those for the
+Berlin-Tiergarten network multi-class scenario; a slight difference is
+that (see Fig.~\ref{fig:CostAnaheim}), the initial estimate for the cost
+function is a bit far way from the ground truth, and this prevents the
+iterative cost function estimates produced by our gradient-based method
+from getting very close to the ground truth.
+
+\begin{figure}[H]  
+	\centering
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/objFun_Anaheim_1_1.pdf}
+		\caption{}
+		\label{fig:uni_objFun_Anaheim}
+	\end{subfigure} 
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/demandsDiff_biLev_Anaheim_1_1.pdf}
+		\caption{}
+		\label{fig:uni_demandsDiff_biLev_Anaheim}
+	\end{subfigure}   
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/fitting_Anaheim_1_1.pdf}
+		\caption{}
+		\label{fig:uni_CostAnaheim}
+	\end{subfigure}  
+	\caption{Key quantities and cost function estimations w.r.t.\
+          the joint iterations (Anaheim; single-class): (a) normalized
+          objective function values; (b) demand differences w.r.t.\
+          ground truth; (c) cost function estimates.}
+	\label{fig:uni_Anaheim}
+\end{figure}
+	
+
+\begin{figure}[H]  
+	\centering
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/objFun_Anaheim_multi_class_1_1.pdf}
+		\caption{}
+		\label{objFun_Anaheim}
+	\end{subfigure} 
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/demandsDiff_biLev_Anaheim_multi_class_1_1.pdf}
+		\caption{}
+		\label{demandsDiff_biLev_Anaheim}
+	\end{subfigure}   
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/fitting_Anaheim_multi_class_1_1.pdf}
+		\caption{}
+		\label{fig:CostAnaheim}
+	\end{subfigure}  
+	\caption{Key quantities and cost function estimations w.r.t.\
+          the joint iterations (Anaheim; multi-class): (a) normalized
+          objective function values; (b) demand differences w.r.t.\
+          ground truth; (c) cost function estimates.}
+	\label{fig:Anaheim}
+\end{figure}
+
+
+\begin{table*}[hbt] 
+	\centering
+	\caption{Summary of Sioux-Falls network single-class scenario
+          experiments:  $({\gamma_1},\gamma_2)$ settings and key outputs
+          (fix ground-truth $f(z) = 1 + 0.15z^4$ and set $(n,c,\gamma) =
+          (6,3.5,1.0)$).} \label{tab3} 
+	\resizebox{\linewidth}{!}
+	{\begin{tabular}{lll|lll}
+            \toprule[1.2pt]
+            \textbf{$({\gamma_1},\gamma_2)$ setting}  & \textbf{iterations} & \textbf{$F(\bbeta,\bg)$ reduction} &  \textbf{$({\gamma_1},\gamma_2)$ setting}  & \textbf{iterations} & \textbf{$F(\bbeta,\bg)$ reduction}  \\
+            \midrule[1.2pt]
+            $(\textbf{0},1)$  &  20  & 96.36\% &$(\textbf{1},1)$  &  20  & 81.94\% \\  
+            \midrule[1.2pt]
+            $(\textbf{0.001},1)$  &  24  & 98.12\% & $(\textbf{10},1)$  &  11  & 45.72\% \\ 
+            \midrule[1.2pt]
+            $(\textbf{0.01},1)$ &   19  & 89.42\% & $(\textbf{100},1)$  &  3  & 13.15\% \\ 
+            \midrule[1.2pt]
+            $(\textbf{0.1},1)$  &  42  & 97.56\%  & $(\textbf{1000},1)$ &  2  & 2.83\% \\ 
+            \bottomrule[1.2pt]
+		\end{tabular}}
+	\end{table*}
+		
+	
+	
+\begin{table*}[hbt] 
+	\centering
+	\caption{Summary of benchmark network experiments: sizes,
+          parameter settings, and key outputs.} \label{tab1} 
+	\resizebox{\linewidth}{!}
+	{\begin{tabular}{lllllll}
+			\toprule[1.2pt]
+			\textbf{network}  & \textbf{zones/nodes/links} & \textbf{ground-truth $f(\cdot)$} & \textbf{model type} & \textbf{$(n,c,\gamma)$ setting}  & \textbf{iterations} & \textbf{$F(\bbeta,\bg)$ reduction}  \\
+			\midrule[1.2pt]
+			\multirow{2}{*}{Sioux-Falls} & \multirow{2}{*}{24/24/76} & \multirow{2}{*}{$f(z) = 1 + 0.15z^4$} & single-class & $(6,3.5,1.0)$ &  20  & 81.94\% \\ & & & multi-class  & $(6,3.5,1.0)$ &  5  & 36.63\% \\
+			\midrule[1.2pt]
+			\multirow{2}{*}{Tiergarten}  & \multirow{2}{*}{26/361/766}  & \multirow{2}{*}{$f(z) = 1 + z^4$} & single-class & $(6,0.5,0.001)$  & 19  & 54.42\% \\& & & multi-class & $(7,1.5,0.1)$ &  9  & 12.89\% \\
+			\midrule[1.2pt]
+			\multirow{2}{*}{Anaheim}  & \multirow{2}{*}{38/416/914}  & \multirow{2}{*}{$f(z) = 1 + 0.15z^4$} & single-class & $(6,3.5,1.0)$ & 10 & 59.33\% \\& & & multi-class & $(6,1.5,0.1)$ &  3  & 45.22\% \\
+			\bottomrule[1.2pt]
+	\end{tabular}}
+\end{table*}
+
+	
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.6\textwidth]{imag/unfiltered.png}
+	\caption{All available road segments in Eastern Massachusetts (from \cite{CDC16}).}
+	\label{eastMA}
+\end{figure}
+
+\begin{figure}[htp]  
+	\centering
+	\includegraphics[width=0.9\textwidth]{imag/ma_journal_map}
+	\caption{Eastern Massachusetts highway network; see \cite{InverseVIsTraffic} for the correspondences between nodes and link indices. (``nodes:zone'' pairs -- \{1\}: Seabrook (NH); \{2, 4, 5\}: NH; \{3\}: Haverhill; \{6, 8\}: Lawrence; \{7, 9\}: Georgetown; \{10, 11\}: Lowell; \{12, 15\}: Salem; \{13, 14\}: Peabody; \{16, 17, 18, 19\}: Burlington; \{20\}: Littleton; \{21\}: Lexington; \{22\}: Boston; \{23, 24, 25, 26, 27, 28\}: Waltham; \{29\}: Quincy; \{30, 31, 32, 33, 34\}: Marlborough/Framingham; \{35, 71\}: Milford; \{36\}: Franklin; \{37, 38, 39, 40, 41\}: Westwood/Quincy; \{42\}: Dedham; \{43, 44, 45, 46, 47\}: Foxborough; \{48, 74\}: Taunton; \{49, 73\}: Plymouth; \{50, 51\}: Cape Cod; \{52\}: Dartmouth; \{53\}: Fall River; \{54, 68, 70\}: RI; \{55, 56\}: VT; \{57\}: Westminster; \{58\}: Leominster; \{59, 60, 72\}: Worcester; \{61\}: Amherst; \{62, 63, 64, 65, 66\}: CT; \{67\}: Webster; \{69\}: Uxbridge.)}
+	\label{fig:zoneMA}
+\end{figure}
+
+
+\subsection{Eastern Massachusetts highway network}
+
+The Eastern Massachusetts (EMA) highway network contains 34 zones (hence, $34 \times (34 - 1) = 1122$ OD pairs), 74 nodes, and 258 links. We describe the EMA datasets and elaborate the data preprocessing procedures in the Appendix.
+
+\subsubsection*{Single-class model}
+Take $n=8$, $c = 1.5$, and $\gamma = 0.001$ in
+\eqref{inverVI2-multi}. See Fig.~\ref{fig:ema} for the
+results. Fig.~\ref{objFun_ema} shows that, after 3 iterations, the
+objective function value of BiLev is reduced by more than $7\%$.
+	
+\subsubsection*{Multi-class model}
+Take $n=8$, $c = 1.5$, and $\gamma = 0.001$ in
+\eqref{inverVI2-multi}. See Fig.~\ref{fig:ema-multi} for the
+results. Fig.~\ref{objFun-ema-multi} shows that, after 7 iterations, the
+objective function value of BiLev is reduced by more than $5\%$.
+
+	
+	\begin{figure}[H]  
+	\centering
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/objFun_MA_journal.pdf}
+		\caption{}
+		\label{objFun_ema}
+	\end{subfigure} 
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/fitting_MA_journal.pdf}
+		\caption{}
+		\label{fig:costEma}
+	\end{subfigure}  
+	\caption{Key quantities and cost function estimations w.r.t.\
+          the joint iterations (EMA; single-class): (a) Normalized
+          objective function values; (b) Cost function estimation.}
+	\label{fig:ema}
+\end{figure}
+	
+	
+	\begin{figure}[H]  
+	\centering
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/objFun_MA_journal_multi_class_1_1.pdf}
+		\caption{}
+		\label{objFun-ema-multi}
+	\end{subfigure} 
+	\begin{subfigure}[b]{0.8\textwidth}
+		\includegraphics[width=\textwidth]{imag/fitting_MA_journal_multi_class_1_1.pdf}
+		\caption{}
+		\label{fig:costEma-multi}
+	\end{subfigure}  
+	\caption{Key quantities and cost function estimations w.r.t.\
+          the joint iterations (EMA; multi-class): (a) Normalized
+          objective function values; (b) Cost function estimation.}
+	\label{fig:ema-multi}
+\end{figure}
+	
+
+\begin{table*}[hbt]
+	\centering
+	\caption{Summary of EMA highway subnetwork experiments: size, parameter settings, and key outputs.} \label{tab2}
+	\resizebox{\linewidth}{!}
+	{\begin{tabular}{lllllll}
+            \toprule[1.2pt]
+            \textbf{network}  & \textbf{zones/nodes/links} & \textbf{reference $f(\cdot)$} & model type & \textbf{$(n,c,\gamma)$ setting} & \textbf{iterations} & \textbf{$F(\bbeta,\bg)$ reduction}  \\
+            \midrule[1.2pt]
+            \multirow{2}{*}{EMA}  & \multirow{2}{*}{34/74/258} & \multirow{2}{*}{$f(z) = 1 + 0.15z^4$} & single-class & $(8,1.5,0.001)$ & 3 & {7.38\%} \\& & & multi-class & $(8,1.5,0.001)$ & 7 & 5.11\% \\
+            \bottomrule[1.2pt]
+	\end{tabular}}
+\end{table*}
+
+	
+\section{Conclusions and future work}  \label{sec:conc}
+	
+	
+From the numerical results for benchmark networks we see that
+Alg.~\ref{alg:joint} (with Alg.~\ref{alg:msa} as a subroutine) works
+well in terms of reducing the objective function value of BiLev while
+improving the estimation accuracy for the cost function. Though we can
+not always expect that the two goals can be achieved simultaneously, our
+experience shows that we can always reduce the objective function value
+of BiLev to some extent, sometimes significantly; this is due to the
+construction of Alg.~\ref{alg:joint} (see Prop. \ref{prop1}). In
+addition, we have not observed cases where the cost function estimate
+deteriorates as iterations advance. Although we can not always expect
+the adjusted OD demands to be closer to the ground truth compared to
+their initial values, we see that in all our experiments, the actual
+adjustments on the initial demand are slight, meaning we do not alter
+the original data much. Furthermore, through the numerical experiments
+over the EMA highway network, we demonstrate how our proposed algorithms
+can be applied using real data.
+	
+Note that, of course, in practice, the output of our algorithm would
+heavily depend on the initial demand data as well as the accuracy of the
+flow observations. It is also worth mentioning that the two subroutines
+for solving the forward VI problem (Alg.~\ref{alg:msa}) and the inverse
+VI problem (we solve \eqref{inverVI2-multi} using the Gurobi solver)
+would largely determine the total running time. Our experience suggests
+that more accurate outputs of these two subroutines would typically
+increase the number of iterations in Alg.~\ref{alg:joint}. Take the
+subroutine Alg.~\ref{alg:msa} for instance; in practice one may want to
+save some computation time by setting the parameter $L$ (resp.,
+$\epsilon_3$) to a smaller (resp., bigger) value, thus sacrificing a
+little accuracy of the final OD demand vector and cost function.
+	
+Possible future directions include:
+\begin{itemize}
+\item[-] As indicated in our earlier work \cite{ieee18}, a potential
+  more accurate estimate of the cost functions could be leveraged to
+  facilitate smarter GPS navigation, thus reducing congestion (or, more
+  specifically the ``Price of Anarchy''~\cite{CDC16,IFAC17,ieee18}) in
+  road networks. It is also possible to perform sensitivity analysis of
+  link congestion metrics with respect to key quantities, such as link
+  capacity and free-flow speed, similar to the analysis we have
+  conducted in \cite{ieee18} for single-class networks. The results of
+  this analysis would enable the Transportation department of a city to
+  prioritize congestion-reducing interventions.
+ 
+\item[-] One can consider integrating our algorithms to a dynamic OD
+  demand estimation problem setting; see, e.g.,
+  \cite{pitombeira2017dynamic}, among others. The potential outcome
+  would be to provide a more trustworthy database so as to predict the
+  ``Estimated Time of Arrival'' \cite{eta} more accurately.
+\end{itemize}
+
+	
+\section*{Appendix}   \label{sec:append}
+
+We first provide a brief description of the datasets extracted from the
+Eastern Massachusetts (EMA) road network, and then elaborate on the data
+preprocessing.
+
+\subsection*{\Rmnum{1}. Description of datasets} \label{sec: dataset}
+
+Thanks to the Boston Region Metropolitan Planning Organization (MPO), we have access to two datasets over the EMA road network: 
+\noindent (\rmnum{1}) The speed dataset includes the spatial average
+speeds (indistinguishable among different vehicle classes) for more than
+13,000 road segments (with an average length of 0.7 miles; see
+Fig.~\ref{eastMA}) of EMA, providing the average speed for every minute
+of the year 2012.  For each road segment, identified with a unique {\em
+  tmc (traffic message channel)} code, the dataset provides information
+such as speed data (instantaneous, average, and free-flow speed) in
+\emph{miles per hour (mph)}, date and time, and traveling time (in
+\emph{minute}) through that segment.
+\noindent (\rmnum{2}) The flow capacity (in \emph{vehicles per hour})
+dataset includes capacity data for more than 100,000 road segments (with
+an average length of 0.13 miles) in EMA. For more detailed information
+of the two datasets, see \cite{CDC16}.
+
+
+\subsection*{\Rmnum{2}. Preprocessing} \label{prep}
+
+\begin{itemize}
+
+	
+	\item[\rmnum{1})] \textit{Selecting a sub-network} \label{sec:sele}
+	
+	To reduce the computational burden while capturing the key elements of the
+	Eastern Massachusetts road network, we only consider a representative
+	highway sub-network as shown in Fig.~\ref{fig:zoneMA}, where there
+	are 2984 road segments, composing a road network $\big( {\tilde {\scrV},\tilde {\scrA}}, \tilde {\scrW} \big)$ with 74 nodes and 258 links. 
+	Further, we simplify the analysis by grouping nodes within the same area, assigning them the same \emph{zone} label, thus obtaining 34 zones (as opposed to 74 nodes). Assuming that each zone could be an origin and a destination, then there are $34 \times (34-1) = 1122$ OD pairs. It is worth mentioning that the nodes 72, 73, and 74 are introduced for ensuring the identifiability of the OD demand matrices; see \cite[Lemma 2]{hazelton2000estimation}. We clarify here that, in our recent released EMA benchmark network \cite{BarGera16}, for simplicity we label each and every of the 74 nodes as a \emph{zone}. However, only 34 of them play an actual role in composing OD pairs; to put it another way, there are $74 \times (74 - 1) - 34 \times (34 - 1) = 4280$ ``fictitious'' OD pairs whose flow demand is zero.
+	
+	\item[\rmnum{2})] \textit{Calculating average speed and free-flow speed} \label{sec:upda}
+
+First, we select a time instances set $\mathcal{T}$ consisting of each
+minute of a PM peak period (5 pm -- 7 pm) for each day of April
+2012. Note that the selected PM period is a subinterval of
+the PM period in the capacity dataset. Then, we calculate
+the \textit{average speed} for each road segment over $\scrT$ (covering 120 minutes).  Finally, for each road segment, we compute a reliable
+proxy of the \textit{free-flow speed} by using the 85th-percentile point of the
+observed speeds on that segment for all the time instances belonging to
+$\mathcal{T}$.
+	
+	\item[\rmnum{3})]	\textit{Aggregating flows of the segments on each link} \label{sec:aggre}
+
+For $i \in [\kern-0.15em[ \tilde\scrA 
+]\kern-0.15em]$, let $\{
+{v_i^{{j}}},{t_i^{{j}}},{v^{{0j}}_i},{t^{{0j}}_i},{m_i^{{j}}};
+\, j = 1, \ldots, J_i \}$ denote the available observations
+($v_i^{{j}}$, $t_i^{{j}}$), and parameters
+($v^{{0j}}_i$, $t^{{0j}}_i$,
+$m_i^{{j}}$) of the segments composing the $i$th \textit{physical} link, where, for each segment $j$, $v^{{j}}_i$
+(resp., $v^{{0j}}_i$) is the \emph{average speed} (resp., \emph{free-flow speed};
+in \emph{miles per hour}), $t^{{j}}_i$ (resp.,
+$t^{{0j}}_i$) is the \emph{travel time} (resp., \emph{free-flow travel
+	time}; in \emph{hours}), and $m_i^{{j}}$ is the \emph{flow capacity}
+(in \emph{vehicles per hour}). Then, using Greenshield's model \cite{TSM}, we calculate the \textit{traffic
+	flow} (in \emph{vehicles per hour}) on segment $j$ by 
+\begin{align}
+{\hat x_i^{{j}}} = \frac{{4{m_i^{{j}}}}}{{{v^{{0j}}_{i}}}} {v_i^{{j}}} - \frac{{4{m_i^{{j}}}}}{{(v^{{0j}}_{i})^2}} (v_i^{{j}})^2.
+\label{Gr}
+\end{align}
+In our analysis, we enforce ${v_i^{{j}}} \leq
+v_i^{{0j}}$ to make sure that the flow given by \eqref{Gr}
+is nonnegative. In particular, if for some time instance
+${v_i^{{j}}} > v_i^{{0j}}$ (this rarely
+happens), we set ${v_i^{{j}}} =
+v_i^{{0j}}$ in \eqref{Gr}, thus leading to a zero flow
+estimation for this time instance.
+Aggregating over all segments composing link $i$ we compute:
+\[
+\hat x_i = \frac{{\sum\nolimits_{j = 1}^{J_i}
+		{{\hat x_i^{{j}}}{t_i^{{j}}}}
+}}{{\sum\nolimits_{j = 1}^{J_i} {{t_i^{{j}}}}
+}},\,\,
+{t_i^{{0}}} = \sum\nolimits_{j = 1}^{J_i}
+{{t^{{0j}}_{i}}},\,\, 
+{m_i} = \frac{{\sum\nolimits_{j = 1}^{J_i}
+		{{m_i^{{j}}}{t^{{0j}}_{i}}}
+}}{{\sum\nolimits_{j = 1}^{J_i} {{t^{{0j}}_{i}}} }},  
+\]
+where $\hat x_i^j$ is given by \eqref{Gr} and ${t^{{0j}}_{i}} =
+v_i^{{j}} t_i^{{j}}/v^{{0j}}_{i}$,
+$j = 1, \ldots ,J_i$.
+	
+	
+\item[\rmnum{4})] \textit{Adjusting link flows to satisfy conservation}
+	\label{sec:flcon}
+	
+	For $i \in [\kern-0.15em[ \tilde\scrA 
+	]\kern-0.15em]$, let ${\hat x}_i$ denote the original estimate of the
+	flow on link $i$ (see the last step), $x_i$ its adjustment, and $\xi_{iu}$ the flow percentage on link $i$ for vehicle class $u \in [\kern-0.15em[ \tilde\scrU 
+	]\kern-0.15em]$ (note that $\xi_{iu} \ge 0$ and $\sum_{u=1}^{|\tilde{\scrU}|}\xi_{iu} = 1$). Then, $x_{iu} = \xi_{iu} x_i$ (recall that $x_{iu}$ denotes the flow on link $a(i,u)$; i.e., $x_{iu}$ is the flow on link $i$ for vehicle class $u$). We solve the following \emph{Least
+		Squares} problem:
+	\begin{align}
+	\min_{\bx} \quad & \sum_{i = 1}^{  |\tilde\scrA| 
+	} \sum_{u = 1}^{ | \tilde\scrU |} {{{\xi^2_{iu}\left( {{x_i} - {{\hat x}_i}} \right)}^2}}  \label{fl1} \\
+	{\text{s.t.}} \quad & 
+	\sum_{i\in \scrI(v_j)}\xi_{iu}x_i = \sum_{i\in \scrO(v_j)}\xi_{iu}x_i, &\forall j \in [\kern-0.15em[ \tilde\scrV 
+	]\kern-0.15em], \, u \in [\kern-0.15em[ \tilde\scrU 
+	]\kern-0.15em],
+	\notag \\
+	\quad &x_i \geq 0, & \forall i \in [\kern-0.15em[ \tilde\scrA 
+	]\kern-0.15em], \notag
+	\end{align}
+	where the first constraint enforces flow conservation for each node $v_j \in \tilde\scrV $ with $\scrI(v_j)$ (resp., $\scrO(v_j)$) denoting the set of links entering
+	(resp., outgoing) to (resp., from) node $v_j$. Note that \eqref{fl1} generalizes its counterpart in \cite{CDC16,IFAC17,ieee18}; the latter only tackles the case where $|\tilde{\scrU}| = 1$.
+	For the case where $|\tilde{\scrU}| = 2$, the datasets available to us do not contain exact information of the parameters $\xi_{iu}$; in our experiments, we choose universally $\xi_{i1} = 0.8$ (for private cars) and $\xi_{i2} = 0.2$ (for commercial trucks).
+	
+	\item[\rmnum{5})] 	\textit{Estimating initial OD demand vectors} \label{sec:ODmat}
+	
+	For network $( {\tilde{\mathcal{V}}, \tilde{\scrA}, \tilde{\mathcal{W}}} )$, to estimate initial OD demand vectors $\bg_u = ( {{g_{iu}}; \,i \in [\kern-0.15em[ \tilde \scrW 
+		]\kern-0.15em]} )$, $u \in [\kern-0.15em[ \tilde \scrU 
+	]\kern-0.15em]$, we borrow the Generalized Least Squares (GLS) method proposed in \cite{hazelton2000estimation}, which assumes the network to be uncongested (i.e., for each OD pair the route choice probabilities are independent of traffic flow), and the OD trips (traffic counts) to be Poisson distributed. In addition, we assume that the OD demands for different vehicle classes are independent from one another. Fix vehicle class $u \in [\kern-0.15em[ \scrU 
+	]\kern-0.15em]$.
+	Denote by $\{ {{\bx_u^{\scriptscriptstyle{(k)}}}};
+	\, k \in [\kern-0.15em[ \scrK 
+	]\kern-0.15em]\}$ $|\scrK|$ observations of the flow vector for vehicle class $u$. Let $\bS_u = (1/(|\scrK| - 1))\sum\nolimits_{k = 1}^{|\scrK|} {\big(
+		{{\bx_u^{\scriptscriptstyle{(k)}}} - \bar {\bx}_u} \big){{\big(
+				{{\bx_u^{\scriptscriptstyle{(k)}}} - \bar {\bx}_u} \big)}' }}$ be
+	the sample covariance matrix, where $\bar \bx_u  = (1/|\scrK|)\sum\nolimits_{k = 1}^{|\scrK|} {{\bx_u^{\scriptscriptstyle{(k)}}}} $. Let $\bP_u = \left[ {{p_u^{ir}}} \right]$ denote the
+	route choice probability matrix, where $p_u^{ir}$ is the probability that a driver between OD pair $i$
+	selects route $r$. Let $\bxi_u  = \bP_u'\bg_u$. Then, the GLS method proceeds as follows:
+	
+	(\rmnum{1}) Identify a set $\scrR_u^i$ of feasible routes for each OD pair $i$, thus obtaining the link-route incidence matrix $\bA_u$. 
+	
+	(\rmnum{2}) 
+	Solve sequentially the following two problems:
+	\begin{align}
+	\text{(P1)} \quad \mathop {\min }\limits_{\bxi_u  \geq \textbf{0}} \quad \frac{|\scrK|}{2}\bxi_u '\bQ_u\bxi_u  - \bb_u'\bxi_u,   \label{qp2}
+	\end{align}
+	where $\bQ_u = \bA_u'{\bS_u^{ - 1}}\bA_u$ and $\bb_u =
+	\sum\nolimits_{k = 1}^{|\scrK|} {\bA_u'{\bS_u^{ - 1}}{\bx_u^{\scriptscriptstyle{(k)}}}} $, and
+	\begin{align}
+	\text{(P2)} \quad &\mathop {\min }\limits_{\bP_u \geq \textbf{0}, \,\bg_u \geq \textbf{0} } \quad h\left( {\bP_u,\bg_u } \right) \label{qp3} \\
+	\text{s.t.} \quad 
+	& p_u^{ir} = 0 \quad \forall (i,r) \in \{(i,r): r \notin \scrR_u^i\}, \notag \\
+	&\bP_u'\bg_u  = {\bxi_u ^0}, \notag \\
+	&\bP_u\textbf{1} = \textbf{1}, \notag 
+	\end{align}
+	where $h(\cdot, \cdot)$ can be taken as any smooth scalar-valued function, $\bxi_u^0$ is the optimal solution to (P1), and $\textbf{1}$ denotes the vector with all $1$'s as its entries. Note that (P1) (resp., (P2)) is a typical \textit{Quadratic Program (QP)} (resp., \textit{Quadratically Constrained Program (QCP)}). Letting $(\bP_u^0, \bg_u^0)$ be an optimal solution to (P2), then $\bg_u^0$ is our initial estimate of the demand vector for vehicle class $u$.
+	It is worth mentioning that here we are able to deal with multi-class models, whereas in \cite{CDC16,IFAC17,ieee18} only single-class models have been considered. 
+	
+	As pointed out in \cite{ieee18}, we note that the GLS method would encounter numerical difficulties when the network size is as large as the one we are currently dealing with, because there would be too many decision variables in (P2). Thus, we perform a simplification procedure. In particular, we only consider the shortest route for each OD pair of $( {\tilde{\mathcal{V}}, \tilde{\scrA}, \tilde{\mathcal{W}}} )$, thus, leading to a deterministic route choice matrix $\bP$ and significantly reducing the number of decision variables in the QCP (P2).
+	
+	For each vehicle class, we choose to estimate the initial OD demand vector corresponding to the selected PM peak period (5 pm -- 7 pm) of April 2012, by leveraging $|\scrK| = 120$ samples of the flow vector.  We take the average of these 120 flow vectors so as to obtain the observed flow vector $\bx^*$.
+	
+	
+
+\end{itemize}
+
+	
+	\section*{Acknowledgments}
+	
+	The authors would like to thank the Boston Region MPO, and Scott Peterson in particular, for supplying the EMA data and providing us invaluable clarifications throughout our work. 
+	
+	
+
+	\clearpage
+	
+% 	\section*{References}
+	
+%	\bibliographystyle{IEEEtran}
+	\bibliographystyle{elsarticle-num}
+	%\bibliography{bib1}
+
+\bibliography{/home/yannisp/Private/bib/abbrev,/home/yannisp/Private/bib/IEEEabrv,/home/yannisp/Private/bib/communications,/home/yannisp/Private/bib/my,/home/yannisp/Private/bib/optimization,/home/yannisp/Private/bib/stochastics,/home/yannisp/Private/bib/various,/home/yannisp/Private/bib/bio,/home/yannisp/Private/bib/statistics,/home/yannisp/Private/bib/control,/home/yannisp/Private/bib/transportation,bib1}
+	
+	%\bibliography{C:/Users/Yannis/Documents/Private/bib/IEEEabrv,C:/Users/Yannis/Documents/Private/bib/abbrev,C:/Users/Yannis/Documents/Private/bib/communications,C:/Users/Yannis/Documents/Private/bib/my,C:/Users/Yannis/Documents/Private/bib/optimization,C:/Users/Yannis/Documents/Private/bib/stochastics,C:/Users/Yannis/Documents/Private/bib/control,C:/Users/Yannis/Documents/Private/bib/statistics,bib1}
+	
+	
+	
+\end{document}              
